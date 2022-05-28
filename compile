@@ -2,3 +2,7 @@ as -o boot.o boot.s
 ld --oformat binary -o boot.img -T linker.ld boot.o
 
 echo "Compile successfull"
+
+echo "Starting qemu"
+sleep 0.1
+qemu-system-i386 -m 32M -hda boot.img
