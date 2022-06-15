@@ -19,6 +19,9 @@
   * Za pristupanje više od 64k memorije treba koristit segmentne registre. 
 
 * **Adresiranje memorije**: Pristupanje memoriji se radi preko segment:offset sistema. Gdje je segment jedan od 6 segmentnih registara, CS, DS, ES, FS, GS, SS korišten sa sljedečom notacijom: 12F3:4B27 (Segment:Offset). Tu se koristi slj. formula 'Fizička adresa = Segment * 16 + Offset'; pa prema tome 12F3:4B27 pokazuje na '12F3 * 16 + 4B27 = 17A57'
+
+![Alt text](notes1.jpg)
+
 Note za mene: Postavi qemu nakon
 
 ### Informacije o segmentaciji
