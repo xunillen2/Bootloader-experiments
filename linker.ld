@@ -1,10 +1,11 @@
+ENTRY(_start);
 SECTIONS
 {
 	. = 0x7c00;
-	.text :
-	{
-		*(.*)
-		. = 0x1FE;
+	.text : {
+		*(.text)
+	}
+	.sig 0x7dfe : {
 		SHORT(0xAA55)
 	}
 }
