@@ -3,6 +3,10 @@ ld --oformat binary -o boot.img -T linker.ld boot.o
 
 echo "Compile successfull"
 
+echo "objdump output"
+echo "####################"
+objdump -D -b binary -m i8086 boot.img 
+
 echo "Starting qemu"
 sleep 0.1
 qemu-system-i386 -m 32M -hda boot.img
