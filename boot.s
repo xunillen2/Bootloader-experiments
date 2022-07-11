@@ -38,7 +38,7 @@ print_text:
 	pushw	%bp
 	movw	%sp, %bp
 
-	movw	8(%bp), %dx
+	movw	4(%bp), %dx
 
 	movb	$0x00, %ch
 	movb	$0x00, %cl
@@ -83,5 +83,5 @@ clear_screen:
 
 .section .data
 sample_text:
-        .ascii  "Welcome to Links!\0"
+        .ascii  "Welcome to LinksBoot!\0"
 
