@@ -82,6 +82,5 @@ clear_screen:
 	ret
 
 .section .data
-sample_text:
+welcome_text:
         .ascii  "Welcome to LinksBoot!\0"
-
