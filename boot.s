@@ -19,9 +19,6 @@
 .section .text
 
 # Setup segments
-movw    $0x600, %ax
-movw    %ax, %ds
-
 movw    $0x7e0, %ax
 movw    %ax, %ss
 
