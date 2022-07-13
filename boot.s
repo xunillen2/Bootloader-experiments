@@ -27,8 +27,12 @@ movw    $0x2000, %sp
 _start:
 	# Clear screen
 	call clear_screen
+
+	# Reset disk
+	call reset_disk
+
 	# Print message
-	pushw	$sample_text
+	pushw	$welcome_text
 	call print_text
 
        loop_end:
@@ -81,6 +85,74 @@ clear_screen:
 	popw	%bp
 	ret
 
+## ATA OPERATIONS ##
+# INT 13
+#
+# ABOUT:
+#	Resets disk so we can be ready to read second stage bootloader from FAT
+#	INT $0x13
+#	REGISTERS:
+#		%ax - $0x00 -> Reset disk system
+#		%dl - Specify which disk to use
+#			(From disk table - 0x00 - 0x07h -> 1-128 floppy disk)
+#			(From disk table - 0x80 - 0xff -> 1-128 hard disk)
+#	RETURNS:
+#		If carry flag is set -> error (Valid for all functions)
+#		%ah - 0x86 -> unsupported function
+#		%ah - 0x80 -> unvalid function
+#	NOTES:
+#		We dont always boot from first disk, change detection later
+#
+reset_disk:
+	pushw	%bp
+	movw	%sp, %bp
+
+	movw	$0x00, %ax	# For reseting disk system
+	movb	$0x80, %dl	# Using 0x80 to use first disk
+	int	$0x13
+
+	jc	error_reboot	# If carry flag is set, error occured
+	cmpb	$0x86,	%ah	# If %ah is set to 0x86 -> unsupported function
+	je	error_unsupported
+	cmpb	$0x80,	%ah	# If %ag is set to 0x80 -> Invalid function
+	je	error_unsupported
+
+	movw	%bp, %sp
+	popw	%bp
+	ret
+
+
+## ERROR SUBROUTINES ##
+#
+# ABOUT:
+#	If error while calling bios function is 0x86 or 0x80
+#	jmp to error_unsuported, which will print that function
+#	is not supported, and will continue down to error_reboot.
+#	If carry flag is set, jmp to error_reboot,
+#	which will print message, and wait for user input (int 0x16, ah 0x00),
+#	and it will then reboot the system.
+#
+error_unsupported:
+	pushw   $error_text
+	call    print_text      # Print function error text
+	subw	$2, %sp
+error_reboot:
+	pushw	$error_text
+	call	print_text	# Print error text
+	subw	$2, %sp
+
+	movw	$0x00,	%ax	# ah - 0x00 and it 0x16 for reading keyboard scancode
+	int	$0x16		# Contines executing after any key on keyboard
+				# has been pressed
+
+	jmp	$0xffff, $0000	# Jumps to reset vector, and reboots pc
+				# FFFF * 16 + 0 = FFFF0 ->
+				#	1048560 - 16 bytes below 1mb
+
 .section .data
 welcome_text:
-        .ascii  "Welcome to LinksBoot!\0"
+        .ascii  "Welcome to LinksBoot!\n\rBooting...\0"
+error_uns_text:
+	.ascii  "Function not supported, or is invalid.\0"
+error_text:
+	.ascii	"Boot error... Press any key to reboot."
