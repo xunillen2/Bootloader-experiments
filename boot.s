@@ -18,13 +18,22 @@
 .globl _start
 .section .text
 
-# Setup segments
-movw    $0x7e0, %ax
-movw    %ax, %ss
-
-movw    $0x2000, %sp
-
 _start:
+	jmp main
+
+boot_vars:
+	boot_drive:	.byte 0	# Boot drive number (dl)
+
+main:
+	# Setup segments
+	movw    $0x7e0, %ax
+	movw    %ax, %ss
+
+	movw    $0x2000, %sp
+
+
+	movb	%dl, boot_drive		# Save value that represents the drive
+					# we booted from
 	# Clear screen
 	call clear_screen
 
@@ -35,6 +44,7 @@ _start:
 	pushw	$welcome_text
 	call print_text
 
+	jmp error_reboot
        loop_end:
 		jmp loop_end
 
@@ -107,14 +117,14 @@ reset_disk:
 	pushw	%bp
 	movw	%sp, %bp
 
-	movw	$0x00, %ax	# For reseting disk system
-	movb	$0x80, %dl	# Using 0x80 to use first disk
+	movw	$0x00, %ax		# For reseting disk system
+	movb	boot_drive, %dl		# Using 0x80 to use first disk
 	int	$0x13
 
-	jc	error_reboot	# If carry flag is set, error occured
-	cmpb	$0x86,	%ah	# If %ah is set to 0x86 -> unsupported function
+	jc	error_reboot		# If carry flag is set, error occured
+	cmpb	$0x86,	%ah		# If %ah is set to 0x86 -> unsupported function
 	je	error_unsupported
-	cmpb	$0x80,	%ah	# If %ag is set to 0x80 -> Invalid function
+	cmpb	$0x80,	%ah		# If %ag is set to 0x80 -> Invalid function
 	je	error_unsupported
 
 	movw	%bp, %sp
