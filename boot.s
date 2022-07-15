@@ -44,9 +44,12 @@ main:
 	pushw	$welcome_text
 	call print_text
 
+	call load_second_bt
 	jmp error_reboot
        loop_end:
 		jmp loop_end
+
+## SCREEN FUNCTIONS ##
 
 print_text:
 	pushw	%bp
@@ -131,6 +134,23 @@ reset_disk:
 	popw	%bp
 	ret
 
+load_second_bt:
+	movb	$0x02, %ah
+	movb	$0x01, %al
+	movb	$0x00, %ch
+	movb	$0x02, %cl
+	movb	$0x00, %dh
+	movb	boot_drive, %dl
+
+	# Temp set registers
+	xor	%bx, %bx
+	mov	%bx, %es
+	mov	$0x7e00, %bx
+	int 	$0x13
+
+	jc	error_reboot
+
+	jmp	0x7e00
 
 ## ERROR SUBROUTINES ##
 #

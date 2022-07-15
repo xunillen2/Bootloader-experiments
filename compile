@@ -1,12 +1,43 @@
-as  -o boot.o boot.s
-ld --oformat binary -o boot.img -T linker.ld boot.o
+#!/bin/bash
 
-echo "Compile successfull"
+echo "Compiling first stage bootloader..."
+as  -o boot_firststage.o boot.s
+ld --oformat binary -o boot_firststage.img -T linker.ld boot_firststage.o
 
-echo "objdump output"
+if [ -e boot_firststage.img ]
+then
+	echo "First stage bootloder compilation OK"
+else
+        echo "First stage bootloder compilation FAILED"
+	exit 0
+fi
+echo -e "\n\nobjdump output - First stage bootloader"
 echo "####################"
-objdump -D -b binary -m i8086 boot.img 
+objdump -D -b binary -m i8086 boot.img
+
+
+echo "Compiling second stage bootloader..."
+as -o boot_secondstage.o boot2.s
+ld --oformat binary -o boot_secondstage.img boot_secondstage.o
+
+if [ -e boot_secondstage.img ]
+then
+        echo "Second stage bootloder compilation OK"
+else
+        echo "Second stage bootloder compilation FAILED"
+        exit 0
+fi
+echo -e "\n\nobjdump output - Second stage bootloader"
+echo "####################"
+objdump -D -b binary -m i8086 boot_secondstage.img
+
+
+echo -e "\n\nCreating Disk image..."
+dd if=/dev/zero of=boot_fin.img bs=1024 count=1
+dd if=boot_firststage.img of=boot_fin.img bs=512 count=1
+dd if=boot_secondstage.img of=boot_fin.img bs=512 count=1 seek=1
 
 echo "Starting qemu"
 sleep 0.1
-qemu-system-i386 -m 32M -hda boot.img
+qemu-system-i386 -m 32M -hda boot_fin.img
+
