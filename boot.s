@@ -179,7 +179,6 @@ error_reboot:
 				# FFFF * 16 + 0 = FFFF0 ->
 				#	1048560 - 16 bytes below 1mb
 
-.section .data
 welcome_text:
         .ascii  "Welcome to LinksBoot!\n\rBooting...\0"
 error_uns_text:

@@ -5,9 +5,6 @@ SECTIONS
 	.text : {
 		*(.text)
 	}
-	.data : {
-		*(.data)
-	}
 	.sig 0x7dfe : {
 		SHORT(0xAA55)
 	}
