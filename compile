@@ -13,7 +13,7 @@ else
 fi
 echo -e "\n\nobjdump output - First stage bootloader"
 echo "####################"
-objdump -D -b binary -m i8086 boot.img
+objdump -D -b binary -m i8086 boot_firststage.img
 
 
 echo "Compiling second stage bootloader..."
@@ -39,5 +39,9 @@ dd if=boot_secondstage.img of=boot_fin.img bs=512 count=1 seek=1
 
 echo "Starting qemu"
 sleep 0.1
-qemu-system-i386 -m 32M -hda boot_fin.img
+if [ $1 = "d" ]; then
+	qemu-system-i386 -m 32M -hda boot_fin.img -s -S
+else
+	qemu-system-i386 -m 32M -hda boot_fin.img
+fi
 
