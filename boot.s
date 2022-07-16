@@ -49,21 +49,39 @@ main:
        loop_end:
 		jmp loop_end
 
+######################
 ## SCREEN FUNCTIONS ##
-
+######################
+# INT 10 - 17th int vector
+#	Interrupt handler that BIOS sets up. They provide video services ->
+#	Video mode (0h), cursor position (02h), get cursor position (02h)...
+#
+# ABOUT:
+#	Prints text from given address until null char is hit.
+#       INT $0x10
+#	PARAMETERS:
+#		1. Parameter 1 - Address to data to print	<-- 4(%bp)
+#       REGISTERS:
+#		%ah - 0x0e - function code
+#		%al - Caracter to output
+#		%bh - Page number
+#		%bl - Color
+#       RETURNS:
+#		Number of writen bytes
+#       NOTES:
+#
 print_text:
 	pushw	%bp
 	movw	%sp, %bp
 
 	movw	4(%bp), %dx
 
-	movb	$0x00, %ch
-	movb	$0x00, %cl
-	movw	$0, %cx
+	xor	%cx, %cx	# Empty counter register
+				# Used for counting chars.
 	print_loop:
 	        movb    $0x0e,  %ah
 
-                movb    (%edx,%ecx,1), %al
+                movb    (%edx, %ecx, 1), %al
                 cmpb    $0, %al
                 je      print_end
 
@@ -75,28 +93,51 @@ print_text:
                 incw    %cx
                 jmp     print_loop
 	print_end:
+		movw	%cx, %ax
 		movw	%bp, %sp
 		popw	%bp
 		ret
-
+#
+# ABOUT:
+#       Clears screen
+#       INT $0x10
+#       PARAMETERS:
+#
+#       REGISTERS:
+#		%ah - 0x6 - Function code to scroll up
+#				(0x7 for down)
+#		%al - Lines to scroll (down or up) if 0 (clear),
+#				then ch, cl, dh, dl are used
+#		%bh - Background color -> high four bits are for background,
+#				and for low are for foregorund
+#				(see BIOS color attributes)
+#		%ch - Upper row number
+#		%cl - Left column number
+#		%dh - Lower row number
+#		%dl - Right column number
+#
+#       RETURNS:
+#
+#       NOTES:
+#
 clear_screen:
         pushw   %bp
         movw    %sp, %bp
 
-        movb    $0x07, %ah      # Scroll down window
-        movb    $0x00, %al      # Koliko linija da pomaknemo dolje. (0 za brisanje ekrana)
-        movb    $0x07, %bh      # Light gray -> high four 0000 - black, low four 0111 - gray
-        movw    $0x00, %cx      # Cursor - 0,0 position (row, colum up left)
-                                # Specificiramo gornji lijevi dio ekrana
+        movb    $0x07, %ah
+        movb	$0x00, %al
+        movb    $0x07, %bh
 
-        movb    $0x18, %dh      # Specificiramo doljni dio ekrana (24, 70). Doljni red i desni kut
-        movb    $0x4f, %dl
+        xor	%cx, %cx
+        movb    $0x19, %dh
+        movb    $0x50, %dl
 
         int     $0x10
 
 	movw	%bp, %sp
 	popw	%bp
 	ret
+
 
 ## ATA OPERATIONS ##
 # INT 13
@@ -120,7 +161,7 @@ reset_disk:
 	pushw	%bp
 	movw	%sp, %bp
 
-	movw	$0x00, %ax		# For reseting disk system
+	xor	%ax, %ax		# For reseting disk system
 	movb	boot_drive, %dl		# Using 0x80 to use first disk
 	int	$0x13
 
@@ -171,14 +212,13 @@ error_reboot:
 	call	print_text	# Print error text
 	subw	$2, %sp
 
-	movw	$0x00,	%ax	# ah - 0x00 and it 0x16 for reading keyboard scancode
+	xor	%ax, %ax	# ah - 0x00 and it 0x16 for reading keyboard scancode
 	int	$0x16		# Contines executing after any key on keyboard
 				# has been pressed
 
 	jmp	$0xffff, $0000	# Jumps to reset vector, and reboots pc
 				# FFFF * 16 + 0 = FFFF0 ->
 				#	1048560 - 16 bytes below 1mb
-
 welcome_text:
         .ascii  "Welcome to LinksBoot!\n\rBooting...\0"
 error_uns_text:
