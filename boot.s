@@ -25,29 +25,21 @@ boot_vars:
 	boot_drive:	.byte 0	# Boot drive number (dl)
 
 main:
-	# Setup segments
-	movw    $0x7e0, %ax
-	movw    %ax, %ss
-
-	movw    $0x2000, %sp
+	setup_stack:
+		movw    $0x600, %ax	# This is temporary, we do not need much.
+		movw    %ax, %sp	# We will setup memory in second stage bootlaoder
 
 
-	movb	%dl, boot_drive		# Save value that represents the drive
-					# we booted from
-	# Clear screen
-	call clear_screen
+	movb	%dl, boot_drive	# Save value that represents the drive
+				# we booted from
 
-	# Reset disk
-	call reset_disk
+	call clear_screen       # Clear screen
+	call reset_disk         # Reset disk
 
-	# Print message
-	pushw	$welcome_text
+	pushw	$welcome_text   # Print welcome message
 	call print_text
 
-	call load_second_bt
-	jmp error_reboot
-       loop_end:
-		jmp loop_end
+	call load_second_bt     # Load second bootlaoder
 
 ######################
 ## SCREEN FUNCTIONS ##
@@ -138,9 +130,12 @@ clear_screen:
 	popw	%bp
 	ret
 
-
+####################
 ## ATA OPERATIONS ##
-# INT 13
+####################
+# INT 13 - 19th int vector
+#		Fuctions that BIOS provides until driver is implemented.
+#		This is only way to access disks without drivers
 #
 # ABOUT:
 #	Resets disk so we can be ready to read second stage bootloader from FAT
