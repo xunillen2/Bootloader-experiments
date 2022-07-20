@@ -18,7 +18,7 @@ objdump -D -b binary -m i8086 boot_firststage.img
 
 echo "Compiling second stage bootloader..."
 as -o boot_secondstage.o boot2.s
-ld --oformat binary -o boot_secondstage.img boot_secondstage.o
+ld --oformat binary -o boot_secondstage.img -T linker.ld boot_secondstage.o
 
 if [ -e boot_secondstage.img ]
 then
@@ -39,9 +39,12 @@ dd if=boot_secondstage.img of=boot_fin.img bs=512 count=1 seek=1
 
 echo "Starting qemu"
 sleep 0.1
-if [ $1 = "d" ]; then
+if [[ $1 = "b" ]]; then
+	bochs
+fi
+if [[ $1 = "d" ]]; then
 	qemu-system-i386 -m 32M -hda boot_fin.img -s -S
-else
+elif [[ $# -eq 0 ]]; then
 	qemu-system-i386 -m 32M -hda boot_fin.img
 fi
 
