@@ -63,15 +63,15 @@ main:
 #       NOTES:
 #
 print_text:
-	pushw	%bp
-	movw	%sp, %bp
+        pushw   %bp
+        movw    %sp, %bp
 
-	movw	4(%bp), %dx
+        movw    4(%bp), %dx
 
-	xor	%cx, %cx	# Empty counter register
-				# Used for counting chars.
-	print_loop:
-	        movb    $0x0e,  %ah
+        xor     %cx, %cx        # Empty counter register
+                                # Used for counting chars.
+        print_loop:
+                movb    $0x0e,  %ah
 
                 movb    (%edx, %ecx, 1), %al
                 cmpb    $0, %al
@@ -84,11 +84,12 @@ print_text:
 
                 incw    %cx
                 jmp     print_loop
-	print_end:
-		movw	%cx, %ax
-		movw	%bp, %sp
-		popw	%bp
-		ret
+        print_end:
+                movw    %cx, %ax
+                movw    %bp, %sp
+                popw    %bp
+                ret
+
 #
 # ABOUT:
 #       Clears screen
@@ -199,7 +200,7 @@ load_second_bt:
 #	and it will then reboot the system.
 #
 error_unsupported:
-	pushw   $error_text
+	pushw   $error_uns_text
 	call    print_text      # Print function error text
 	subw	$2, %sp
 error_reboot:
@@ -217,6 +218,6 @@ error_reboot:
 welcome_text:
         .ascii  "Welcome to LinksBoot!\n\rBooting...\0"
 error_uns_text:
-	.ascii  "Function not supported, or is invalid.\0"
+	.ascii  "\n\rFunction not supported, or is invalid.\0"
 error_text:
-	.ascii	"Boot error... Press any key to reboot."
+	.ascii	"\n\rBoot error... Press any key to reboot.\0"
