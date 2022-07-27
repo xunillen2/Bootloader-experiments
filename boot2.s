@@ -9,24 +9,24 @@ _start:
 	je	print_enabled
 	jmp	print_disabled
 	print_enabled:
-		movb	$0x0e, %ah
-		movb	$65, %al
-		movb    $0x00,  %bh
-		movb    $0x07,  %bl
-		int     $0x10
-		jmp loop
-#		pushw	$a20_line_enabled
-#		call	print_text
-#		subw	$4, %es
+		pushw	$a20_line_enabled
+		call	print_text
+		jmp	loop
 	print_disabled:
-		movb	$0x0e, %ah
-		movb	$66, %al
-		movb    $0x00,  %bh
-		movb    $0x07,  %bl
-		int     $0x10
-#		pushw   $a20_line_disabled
-#                call    print_text
-#               subw    $4, %es
+		pushw   $a20_line_disabled
+                call    print_text
+		call	activate_a20	# Try, and enable A20 line
+		call	a20_status	# Get A20 status
+		cmpw	$1, %ax
+		jne	a20_failed
+		a20_success:
+			pushw	$a20_line_enabled	# Print status text and continue
+			call	print_text
+			jmp	loop
+		a20_failed:
+			pushw	$a20_line_failed	# If A20 line activation fails, print
+			call	print_text		# message and reboot.
+			call	error_reboot
 loop:
 	jmp loop
 
@@ -79,10 +79,50 @@ a20_status:
                 movw    %bp, %sp
                 popw    %bp
 		ret
-activate_a20_line:
-	
+# ABOUT:
+#	Activates A20 gate using multiple methods:
+#		1. Using BIOS function.
+#			1. Using INT 15 and %ax = 0x2403, check A20 gate support.
+#			   If unsupported (%ax = 0x86 or cf set), then jump to 2.
+#			   If supported get status, and activate A20 gate if needed.
+#			   If function is unable to get A20 status, go to 2.
+#		2.
+#
+#       PARAMETERS:
+#       REGISTERS:
+#       RETURNS:
+#               0 if A20 line is disabled
+#               1 if A20 line is enabled
+#       NOTES:
+#
+activate_a20:
+	bios_int15:
+		# See if A20 line is supported
+		# (QUERY A20 GATE SUPPORT)
+		movw	$0x2403, %ax
+		int	$15
+		cmpb	$0, %ah
+		jnz	keyboard_controller	# jmp. to second activation method
+		jc	keyboard_controller
 
+		movw	$0x2401, %ax		# Activate A20 gate
+		int	$15
+		cmpb	$0, %ah
+		jnz	keyboard_controller
+		jc	keyboard_controller
 
+		# Add check to see if A20 line is enabled #
+		# Need to test a20_status first
+		jmp activate_end		# Lets say A20 line is activated
+
+	keyboard_controller:
+		jmp	fast_a20
+	fast_a20:
+		in	$0x92, %al
+		or	$2, %al
+		out	%al, $0x92
+	activate_end:
+		ret
 
 # Temp print function until i dont move it to seperate file.
 print_text:
@@ -140,14 +180,13 @@ error_reboot:
                                 # FFFF * 16 + 0 = FFFF0 ->
                                 #       1048560 - 16 bytes below 1mb
 
-#.section .data
-#debug_msg:
-	a20_line_enabled:
-		.ascii	"A20 Line ENABLED\0"
-	a20_line_disabled:
-		.ascii	"A20 Line ENABLED\0"
-	error_uns_text:
-        	.ascii  "Function not supported, or is invalid.\0"
-	error_text:
-        	.ascii  "Boot error... Press any key to reboot.\0"
-
+a20_line_enabled:
+	.ascii	"\n\rA20 Line ENABLED\0"
+a20_line_disabled:
+	.ascii	"\n\rA20 Line DISABLED\0"
+a20_line_failed:
+	.ascii "\n\rA20 Line activation failed...\0"
+error_uns_text:
+       	.ascii  "\n\rFunction not supported, or is invalid.\0"
+error_text:
+       	.ascii  "\n\rBoot error... Press any key to reboot.\0"
