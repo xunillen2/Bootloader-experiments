@@ -123,6 +123,13 @@ activate_a20:
 		out	%al, $0x92
 	activate_end:
 		ret
+disable_a20:
+        movw    $0x2400, %ax
+        int $15
+        jc      error_reboot
+        cmpb    $0x86, %ah
+        je      error_unsupported
+        ret
 
 # Temp print function until i dont move it to seperate file.
 print_text:
