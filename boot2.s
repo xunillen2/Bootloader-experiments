@@ -86,8 +86,42 @@ a20_status:
 #			   If unsupported (%ax = 0x86 or cf set), then jump to 2.
 #			   If supported get status, and activate A20 gate if needed.
 #			   If function is unable to get A20 status, go to 2.
-#		2.
+#		2. Using keyboard controller (Classical A20 way)
+#			   1. Write command byte 0xD1 to IO port 0x64 (PS/2 controller).
+#				Then write 0xDF to port 0x60 (output port),
+#				which will enable A20 line
+#				(0b11011111 - second bit sets A20 gate support
+#				https://wiki.osdev.org/%228042%22_PS/2_Controller)
 #
+#			PS/2 Controller IO Ports - 0x60-0x64
+#				IO Port	  Access type	Purpose
+#				0x60	  Read/write	Data port
+#				0x64	  Read		Status register
+#				0x64	  Write		Command register
+#			Command bytes we use here:
+#				0xD1 - Write next byte to Controller Output Port,
+#					write next byte to 0x60 PS/2 IO port
+#					0xD1 and 0xD0 allow us to read and write to
+#					PS/2 controller
+#                       NOTE:   After every OUT (write) instruction check if buffer is empty.
+#                               We do this by reading from 0x64 IO port (Status Register) and
+#                               checking if bit 2 is set (0 = buffer is empty, 1 = buffer is full).
+#                               Do this in loop until bit 1 is not 0. -> function check_buff
+#		3. Use Fast A20 method. This is dangerous and not supported on every system (chip),
+#		   As it can cause weird effects on system if not properly supported. Because of this
+#		   we need to add code that checks if bit 1 is already set, and if we need to write
+#		   0x92 port, as unnecessary writing to it may lead to later problems.
+#		   Using this as last method to try and activate A20 line.
+#			How: We write specific value to port 0x92 to control A20.
+#				Bit 0 (rw) - fast reset
+#				Bit 1 (rw) - Enable/disable (0/1) A20
+#				Bit 3 (rw) - 0/1 Power on password bytes
+#					(In CMOS 0x38-0x3f or 0x36-0x3f)
+#				Bit 6-7 (rw) - Hard disk LED OFF (00), or ON (01,10,11)
+#				Bit 2,4,5 var. meanings
+#			NOTE:	Faster than Keyboard method.
+#			ADDITIONAL DOCS:
+#				https://www.win.tue.nl/~aeb/linux/kbd/A20.html
 #       PARAMETERS:
 #       REGISTERS:
 #       RETURNS:
@@ -96,6 +130,9 @@ a20_status:
 #       NOTES:
 #
 activate_a20:
+        pushw   %bp
+        movw    %sp, %bp
+
 	bios_int15:
 		# See if A20 line is supported
 		# (QUERY A20 GATE SUPPORT)
@@ -111,21 +148,53 @@ activate_a20:
 		jnz	keyboard_controller
 		jc	keyboard_controller
 
-		# Add check to see if A20 line is enabled #
-		# Need to test a20_status first
-		jmp activate_end		# Lets say A20 line is activated
-
+		# Check to see if A20 line is enabled
+		call	a20_status
+		testw	$0x01, %ax
+		jnz	activate_end
+		# Otherwise go to keyboard controller method
 	keyboard_controller:
+		xor	%ax, %ax	# Empty %al
+
+		call	check_buff
+		movb	$0xd1, %al	# Write command byte 0xD1 to IO port 0x64. (see above)
+		outb	%al, $0x64
+
+		call	check_buff
+		movb	$0xdf,	%al	# Write second byte that sets bits to PS/2 controller (see above)
+		outb	%al, $0x60
+		call	check_buff
+
+                # Check to see if A20 line is enabled
+                call	a20_status
+                testw	$0x01, %ax
+                jnz	activate_end
 		jmp	fast_a20
+		# Go to fast A20 method
+		check_buff:
+			inb	$0x64, %al
+			testb	$2, %al		# Bitwise AND, Checks if bit 2 is set.
+						# If result is 0, ZF is set to 1, otherwise to 0.
+			jnz	check_buff
+			ret
 	fast_a20:
-		in	$0x92, %al
-		or	$2, %al
-		out	%al, $0x92
+		inb	$0x92, %al
+		testb	$0x02, %al	# Read value from 0x92
+		jnz	fast_a20_end	# And see if bit 2 is set
+		orb	$0x02, %al	# If not, set bit 2, other bits, and write to 0x92.
+		andb	$0xfe, %al
+		outb	%al, $0x92
+		fast_a20_end:
+			# Check to see if A20 line is enabled
+			call	a20_status	# Sets return value
 	activate_end:
+		movw	%bp, %sp
+		popw	%bp
 		ret
+
 disable_a20:
         movw    $0x2400, %ax
-        int $15
+        int	$15
         jc      error_reboot
         cmpb    $0x86, %ah
         je      error_unsupported
@@ -193,6 +262,8 @@ a20_line_disabled:
 	.ascii	"\n\rA20 Line DISABLED\0"
 a20_line_failed:
 	.ascii "\n\rA20 Line activation failed...\0"
+a20_line_fast:
+	.ascii "\n\rUsing FAST A20 method..."
 error_uns_text:
        	.ascii  "\n\rFunction not supported, or is invalid.\0"
 error_text:
