@@ -192,13 +192,35 @@ activate_a20:
 		popw	%bp
 		ret
 
+# ABOUT:
+#	Disables A20 line.
+#	This is debug function. It only uses bios int15 function to disable
+#	A20 line. Use only for debug.
+#       PARAMETERS:
+#       REGISTERS:
+#       RETURNS:
+#       NOTES:
+#		This function will be implemented properly if there will be need for it.
+#
 disable_a20:
+	pushw	%ax
+
+	# See if A20 line is supported
+	# (QUERY A20 GATE SUPPORT)
+	movw    $0x2403, %ax
+	int     $15
+	cmpb    $0, %ah
+        jnz     error_unsupported
+	jc	error_unsupported
+
         movw    $0x2400, %ax
         int	$15
         jc      error_reboot
         cmpb    $0x86, %ah
         je      error_unsupported
-        ret
+
+	popw	%ax
+	ret
 
 # Temp print function until i dont move it to seperate file.
 print_text:
