@@ -40,6 +40,7 @@ dd if=boot_secondstage.img of=boot_fin.img bs=512 count=1 seek=1
 echo "Starting qemu"
 sleep 0.1
 if [[ $1 = "d" ]]; then
+	echo -e "\nNOTE: Qemu started in Debug mode, vm execution is paused.\n"
 	qemu-system-i386 -m 32M -hda boot_fin.img -bios bios.bin -s -S
 else
 	qemu-system-i386 -m 32M -hda boot_fin.img -bios bios.bin
