@@ -31,18 +31,22 @@ echo -e "\n\nobjdump output - Second stage bootloader"
 echo "####################"
 objdump -D -b binary -m i8086 boot_secondstage.img
 
-
+echo -e "\nCompile successful."
 echo -e "\n\nCreating Disk image..."
-dd if=/dev/zero of=boot_fin.img bs=1024 count=2
+dd if=/dev/zero of=boot_fin.img bs=1024 count=1
 dd if=boot_firststage.img of=boot_fin.img bs=512 count=1
 dd if=boot_secondstage.img of=boot_fin.img bs=512 count=1 seek=1
 
-echo "Starting qemu"
 sleep 0.1
 if [[ $1 = "d" ]]; then
+	echo "Starting qemu"
 	echo -e "\nNOTE: Qemu started in Debug mode, vm execution is paused.\n"
 	qemu-system-i386 -m 32M -hda boot_fin.img -bios bios.bin -s -S
+elif [[ $1 = "w" ]]; then
+	echo -e "\nWriting image to USB (/dev/sda - unsafe. do not use)"
+	sudo dd if=boot_fin.img of=/dev/sda
 else
+	echo "Starting qemu."
 	qemu-system-i386 -m 32M -hda boot_fin.img -bios bios.bin
 fi
 
