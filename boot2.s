@@ -4,6 +4,8 @@
 .section .text
 
 _start:
+
+	### A20 ###
 	call	a20_status
 	cmpw	$1, %ax
 	je	print_enabled
@@ -27,9 +29,10 @@ _start:
 			pushw	$a20_line_failed	# If A20 line activation fails, print
 			call	print_text		# message and reboot.
 			call	error_reboot
+
+
 loop:
 	jmp loop
-
 
 ##############
 ## A20 LINE ##
@@ -222,6 +225,57 @@ disable_a20:
 	popw	%ax
 	ret
 
+###############
+## GDT TABLE ##
+###############
+# ABOUT: Sets up and loads GDT table
+#	Global descriptor table contains list of selectors, that contain
+#	Information with what memory locations can process access, with specific
+#	premissions
+#
+#	Format of segment descriptor:
+#
+#	31#####################24#23####20#19#######16#15###############8#7#######################0
+#	#			##	 ##	     ##			##			  #
+#	#   Base Address(24-31) ## Flags ##   Limit  ##	  Access byte	##   Base Address (16-23) #
+#	#			##	 ##	     ##			##			  #
+#	###########################################################################################
+#	#					     ##						  #
+#	#		Base Address (0-15)	     ##		Segment Limit (0-15)		  #
+#	#					     ##						  #
+#	###########################################################################################
+#
+#	INFO:
+#		0-15	Segment Limit	- Lower 4 bytes of the descriptors limit
+#		16-31	Base address	- Lower 4 bytes of the descriptors base address
+#		32-39	Base address	- Middle 2 bytes of descritprors base address
+#		40-47	Access byte	- Bit flags defining who has access to memory
+#		48-51	Limit		- Upper	4 bits of descriptors limit
+#		52-55	Flags		- Four flags used to define segment size
+#		56-63	Base address	- Upper 2 bytes od descriptors base address
+#	Address 		Content
+#	GDTR Offset + 0 	Null
+#	GDTR Offset + 8 	Entry 1		- Code Descriptor
+#	GDTR Offset + 16 	Entry 2		- Data Descriptor
+#	....
+#
+#	Access Byte:
+#		7	Present(Pr)		- Is selector present or not (1/0)
+#		6	Privilege level(Priv)	- Set level(ring) of execution. 0-3
+#		5	Excebutable(Ex)		- Is memory content executable
+#		4	Direction(DC)		- Indicates if code can be executed from lower privelege level
+#							(Code Segment)
+#		3	Conforming(DC)		- Indicates if segment grows down(1) or up(0) (Data seg)
+#		2	Readable(RW)		- Indicates if memory content can be read (1) (Code seg)
+#		1	Writable(RW)		- Indicates if data can be writen to memory (1) (Data seg)
+#		0	Accessed(Ac)		- If Segment is accessed, this will be set to 0
+#
+#	Flag:
+#		3	Granularity(Gr)		- (0) Descriptor limit is specified in bytes.
+#						  (1) Descriptor limit is specified in blocks (4KB - we can access 4GB)
+#		2	Size(Sz)		- (0) 16bit protected mode, (1) 32bit protected mode
+#		1,0	0 0
+#
 # Temp print function until i dont move it to seperate file.
 print_text:
         pushw   %bp
@@ -285,7 +339,9 @@ a20_line_disabled:
 a20_line_failed:
 	.ascii "\n\rA20 Line activation failed...\0"
 a20_line_fast:
-	.ascii "\n\rUsing FAST A20 method..."
+	.ascii "\n\rUsing FAST A20 method...\0"
+gpt_activatd:
+	.ascii "\n\rGPT table OK\0"
 error_uns_text:
        	.ascii  "\n\rFunction not supported, or is invalid.\0"
 error_text:
