@@ -286,10 +286,8 @@ disable_a20:
 #		1,0	0 0
 #
 gdt:
-	test:
-		.ascii "test"
 	null_descriptor:
-		.zero	1
+		.zero	8
 	code_descriptor:	# For cs segment
 		.byte	0xff, 0xff	# Lower segment Limit (Limit to 4GB with 4KB blocks)
 		.byte	0x00, 0x00	# 0 beacuse we want to start from 0 (Lower base)
@@ -306,8 +304,7 @@ gdt:
 		.byte	0xc
 		.byte	0xf
 		.byte	0x00
-	test2:
-		.ascii "test"
+
 
 # Temp print function until i dont move it to seperate file.
 print_text:
