@@ -13,7 +13,7 @@ _start:
 	print_enabled:
 		pushw	$a20_line_enabled
 		call	print_text
-		jmp	loop
+		jmp	next
 	print_disabled:
 		pushw   $a20_line_disabled
                 call    print_text
@@ -24,13 +24,17 @@ _start:
 		a20_success:
 			pushw	$a20_line_enabled	# Print status text and continue
 			call	print_text
-			jmp	loop
+			jmp	next
 		a20_failed:
 			pushw	$a20_line_failed	# If A20 line activation fails, print
 			call	print_text		# message and reboot.
 			call	error_reboot
 
-
+next:
+	load_gdt:
+		lgdt	gdt
+		pushw	$gdt_ok
+		call	print_text
 loop:
 	jmp loop
 
@@ -246,13 +250,17 @@ disable_a20:
 #	###########################################################################################
 #
 #	INFO:
-#		0-15	Segment Limit	- Lower 4 bytes of the descriptors limit
+#		0-15	Segment Limit	- Lower 4 bytes of the descriptors limit.
 #		16-31	Base address	- Lower 4 bytes of the descriptors base address
 #		32-39	Base address	- Middle 2 bytes of descritprors base address
 #		40-47	Access byte	- Bit flags defining who has access to memory
-#		48-51	Limit		- Upper	4 bits of descriptors limit
+#		48-51	Segment Limit	- Upper 4 bits of descriptors limit.
 #		52-55	Flags		- Four flags used to define segment size
 #		56-63	Base address	- Upper 2 bytes od descriptors base address
+#
+#		Segment Limit	- Definies maximum addresable unit
+#		Base address	- Contains linear address where segment begins
+#
 #	Address 		Content
 #	GDTR Offset + 0 	Null
 #	GDTR Offset + 8 	Entry 1		- Code Descriptor
@@ -260,14 +268,15 @@ disable_a20:
 #	....
 #
 #	Access Byte:
-#		7	Present(Pr)		- Is selector present or not (1/0)
-#		6	Privilege level(Priv)	- Set level(ring) of execution. 0-3
-#		5	Excebutable(Ex)		- Is memory content executable
-#		4	Direction(DC)		- Indicates if code can be executed from lower privelege level
+#		6	Present(Pr)		- Is selector present or not (1/0)
+#		5	Privilege level(Priv)	- Set level(ring) of execution. 0-3
+#		4	1
+#		3	Excebutable(Ex)		- Is memory content executable
+#		2	Direction(DC)		- Indicates if code can be executed from lower privelege level
 #							(Code Segment)
-#		3	Conforming(DC)		- Indicates if segment grows down(1) or up(0) (Data seg)
-#		2	Readable(RW)		- Indicates if memory content can be read (1) (Code seg)
-#		1	Writable(RW)		- Indicates if data can be writen to memory (1) (Data seg)
+#			Conforming(DC)		- Indicates if segment grows down(1) or up(0) (Data seg)
+#		1	Readable(RW)		- Indicates if memory content can be read (1) (Code seg)
+#			Writable(RW)		- Indicates if data can be writen to memory (1) (Data seg)
 #		0	Accessed(Ac)		- If Segment is accessed, this will be set to 0
 #
 #	Flag:
@@ -276,6 +285,30 @@ disable_a20:
 #		2	Size(Sz)		- (0) 16bit protected mode, (1) 32bit protected mode
 #		1,0	0 0
 #
+gdt:
+	test:
+		.ascii "test"
+	null_descriptor:
+		.zero	1
+	code_descriptor:	# For cs segment
+		.byte	0xff, 0xff	# Lower segment Limit (Limit to 4GB with 4KB blocks)
+		.byte	0x00, 0x00	# 0 beacuse we want to start from 0 (Lower base)
+		.byte	0x0		# Middle base
+		.byte	0x9a		# Access byte ()
+		.byte	0xc		# Flags (Gr, Sz)
+		.byte	0xf		# Limit
+		.byte	0x00		# Base
+	data_descriptor:	# For ds, es, fs, gs, ss segments
+		.byte	0xff, 0xff
+		.byte	0x00, 0x00
+		.byte	0x0
+		.byte	0x92
+		.byte	0xc
+		.byte	0xf
+		.byte	0x00
+	test2:
+		.ascii "test"
+
 # Temp print function until i dont move it to seperate file.
 print_text:
         pushw   %bp
@@ -340,8 +373,8 @@ a20_line_failed:
 	.ascii "\n\rA20 Line activation failed...\0"
 a20_line_fast:
 	.ascii "\n\rUsing FAST A20 method...\0"
-gpt_activatd:
-	.ascii "\n\rGPT table OK\0"
+gdt_ok:
+	.ascii "\n\rGDT table OK\0"
 error_uns_text:
        	.ascii  "\n\rFunction not supported, or is invalid.\0"
 error_text:
