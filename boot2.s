@@ -32,13 +32,15 @@ _start:
 
 next:
 	load_gdt:
-#		lgdt	gdt
+		call	setup_gdt_table
+		lgdt	gdt
 		pushw	$gdt_ok
 		call	print_text
 	load_idt:
-#		lidt	idt
-		pushw	$idt_ok
-		call	print_text
+		pushw	$idt_loading
+                call    print_text
+		lidt	idt
+#		call	print_text	# Ok. This does not work beacuse we already loaded new idt.
 loop:
 	jmp loop
 
@@ -292,36 +294,60 @@ disable_a20:
 #	gdt: is table containing pointer to gdt_table with 16 bit value that contains gdt_table
 #	size. Used for lgdt instruction
 #
-gdt_table:
-	.ascii "test"
+setup_gdt_table:
+#	null_descriptor:
+#		.zero	8
+#	code_descriptor:	# For cs segment
+#		.byte	0xff, 0xff	# Lower segment Limit (Limit to 4GB with 4KB blocks)
+#		.byte	0x00, 0x00	# 0 beacuse we want to start from 0 (Lower base)
+#		.byte	0x0		# Middle base
+#		.byte	0x9a		# Access byte ()
+#		.byte	0xc		# Flags (Gr, Sz)
+#		.byte	0xf		# Limit
+#		.byte	0x00		# Base
+#	data_descriptor:	# For ds, es, fs, gs, ss segments
+#		.byte	0xff, 0xff
+#		.byte	0x00, 0x00
+#		.byte	0x0
+#		.byte	0x92
+#		.byte	0xc
+#		.byte	0xf
+#		.byte	0x00
+	xor	%ax, %ax
+#	xor	%di, %di
+	movw	%ax, %es
+	movw	$0x700, %di
 	null_descriptor:
-		.zero	8
-	code_descriptor:	# For cs segment
-		.byte	0xff, 0xff	# Lower segment Limit (Limit to 4GB with 4KB blocks)
-		.byte	0x00, 0x00	# 0 beacuse we want to start from 0 (Lower base)
-		.byte	0x0		# Middle base
-		.byte	0x9a		# Access byte ()
-		.byte	0xc		# Flags (Gr, Sz)
-		.byte	0xf		# Limit
-		.byte	0x00		# Base
-	data_descriptor:	# For ds, es, fs, gs, ss segments
-		.byte	0xff, 0xff
-		.byte	0x00, 0x00
-		.byte	0x0
-		.byte	0x92
-		.byte	0xc
-		.byte	0xf
-		.byte	0x00
+		movw	$0x4, %cx
+		rep	stosw
+	code_descriptor:
+		movw	$0xffff, %es:(%di)
+		movw	$0x0000, %es:2(%di)
+		movb	$0x00,	 %es:4(%di)
+		movb	$0x9a,	 %es:5(%di)
+		movb	$0xc,	 %es:6(%di)
+		movb	$0xf,	 %es:7(%di)
+		movb	$0x00,	 %es:8(%di)
+	addw	$8, %di
+	data_descriptor:
+		movw    $0xffff, %es:(%di)
+                movw    $0x0000, %es:2(%di)
+                movb    $0x00,	 %es:4(%di)
+                movb    $0x92,	 %es:5(%di)
+                movb    $0xc,	 %es:6(%di)
+                movb    $0xf,	 %es:7(%di)
+                movb    $0x00,	 %es:8(%di)
+	ret
 gdt:
-	.byte	24	# 3*64 bit
-	.long	gdt_table
+	.word	24	# 3*64 bit
+	.long	0x700
 
 ###############
 ## IDT TABLE ##
 ###############
-#idt:
-#	.byte	2048
-#	.word	
+idt:
+	.word	2048
+	.long	0x718	# (700, 708, 710, 718)
 
 # Temp print function until i dont move it to seperate file.
 print_text:
@@ -389,8 +415,8 @@ a20_line_fast:
 	.ascii "\n\rUsing FAST A20 method...\0"
 gdt_ok:
 	.ascii "\n\rGDT table OK\0"
-idt_ok:
-	.ascii "\n\rIDT table OK\0"
+idt_loading:
+	.ascii "\n\rLoading IDT table...\0"
 error_uns_text:
        	.ascii  "\n\rFunction not supported, or is invalid.\0"
 error_text:
