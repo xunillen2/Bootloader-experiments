@@ -41,6 +41,9 @@ next:
                 call    print_text
 		lidt	idt
 #		call	print_text	# Ok. This does not work beacuse we already loaded new idt.
+
+		protected:
+			call	enter_protected
 loop:
 	jmp loop
 
@@ -348,6 +351,27 @@ gdt:
 idt:
 	.word	2048
 	.long	0x718	# (700, 708, 710, 718)
+
+####################
+## PROTECTED MODE ##
+####################
+# ABOUT:
+#
+#       PARAMETERS:
+#       REGISTERS:
+#       RETURNS:
+#       NOTES:
+#
+enter_protected:
+	cli
+	movl	%cr0, %eax
+	or	$1, %eax
+	movl	%eax, %cr0
+	jmp clear_prefetch_queue
+    	nop
+    	nop
+  clear_prefetch_queue:
+	ret
 
 # Temp print function until i dont move it to seperate file.
 print_text:
