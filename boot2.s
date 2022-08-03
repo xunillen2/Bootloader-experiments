@@ -32,8 +32,12 @@ _start:
 
 next:
 	load_gdt:
-		lgdt	gdt
+#		lgdt	gdt
 		pushw	$gdt_ok
+		call	print_text
+	load_idt:
+#		lidt	idt
+		pushw	$idt_ok
 		call	print_text
 loop:
 	jmp loop
@@ -285,7 +289,11 @@ disable_a20:
 #		2	Size(Sz)		- (0) 16bit protected mode, (1) 32bit protected mode
 #		1,0	0 0
 #
-gdt:
+#	gdt: is table containing pointer to gdt_table with 16 bit value that contains gdt_table
+#	size. Used for lgdt instruction
+#
+gdt_table:
+	.ascii "test"
 	null_descriptor:
 		.zero	8
 	code_descriptor:	# For cs segment
@@ -304,7 +312,16 @@ gdt:
 		.byte	0xc
 		.byte	0xf
 		.byte	0x00
+gdt:
+	.byte	24	# 3*64 bit
+	.long	gdt_table
 
+###############
+## IDT TABLE ##
+###############
+#idt:
+#	.byte	2048
+#	.word	
 
 # Temp print function until i dont move it to seperate file.
 print_text:
@@ -372,6 +389,8 @@ a20_line_fast:
 	.ascii "\n\rUsing FAST A20 method...\0"
 gdt_ok:
 	.ascii "\n\rGDT table OK\0"
+idt_ok:
+	.ascii "\n\rIDT table OK\0"
 error_uns_text:
        	.ascii  "\n\rFunction not supported, or is invalid.\0"
 error_text:
