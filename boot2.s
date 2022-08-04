@@ -378,26 +378,29 @@ print_text:
         pushw   %bp
         movw    %sp, %bp
 
-        movw    4(%bp), %dx
+        movw    4(%bp), %di
 
-        xor     %cx, %cx        # Empty counter register
+        xor     %ax, %ax        # Empty counter register
                                 # Used for counting chars.
-        print_loop:
-                movb    $0x0e,  %ah
+        movw    %ax, %es
 
-                movb    (%edx, %ecx, 1), %al
+        print_loop:
+                movb    %es:(%di), %al
                 cmpb    $0, %al
                 je      print_end
 
+                movb    $0x0e,  %ah
                 movb    $0x00,  %bh
                 movb    $0x07,  %bl
 
                 int     $0x10
 
-                incw    %cx
+                incw    %di
                 jmp     print_loop
         print_end:
-                movw    %cx, %ax
+                movw    4(%bp), %ax     # Get original address
+                subw    %ax, %di        # Sub final address from orig. address
+                movw    %di, %ax        # Move result to %ax for return value.
                 movw    %bp, %sp
                 popw    %bp
                 ret

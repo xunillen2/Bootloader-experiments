@@ -14,6 +14,9 @@
 ############################################################
 .code16
 
+# Notes:
+#	Use ds:si for print string, and move all to segmented addressing
+#
 
 .globl _start
 .section .text
@@ -26,20 +29,24 @@ boot_vars:
 
 main:
 	setup_stack:
-		movw    $0x600, %ax	# This is temporary, we do not need much.
-		movw    %ax, %sp	# We will setup memory in second stage bootlaoder
+		movw	$0x600, %sp	# We will setup memory in second stage bootlaoder
+		movw	$0x50, %ax	# This is temporary, we do not need much.
+		movw	%ax, %ss
 
 
 	movb	%dl, boot_drive	# Save value that represents the drive
 				# we booted from
 
-	call clear_screen       # Clear screen
-	call reset_disk         # Reset disk
+	call	clear_screen       # Clear screen
+	call	reset_disk         # Reset disk
+
+        pushw   $copyright	# Print CopyRight message
+        call    print_text
 
 	pushw	$welcome_text   # Print welcome message
-	call print_text
+	call	print_text
 
-	call load_second_bt     # Load second bootlaoder
+	call	load_second_bt     # Load second bootlaoder
 
 ######################
 ## SCREEN FUNCTIONS ##
@@ -58,34 +65,38 @@ main:
 #		%al - Caracter to output
 #		%bh - Page number
 #		%bl - Color
+#		%ax - Printed characters
 #       RETURNS:
-#		Number of writen bytes
+#		Number of writen bytes in %ax
 #       NOTES:
 #
 print_text:
         pushw   %bp
         movw    %sp, %bp
 
-        movw    4(%bp), %dx
+        movw    4(%bp), %di
 
-        xor     %cx, %cx        # Empty counter register
+        xor     %ax, %ax        # Empty counter register
                                 # Used for counting chars.
-        print_loop:
-                movb    $0x0e,  %ah
+	movw	%ax, %es
 
-                movb    (%edx, %ecx, 1), %al
+        print_loop:
+                movb    %es:(%di), %al
                 cmpb    $0, %al
                 je      print_end
 
+		movb    $0x0e,  %ah
                 movb    $0x00,  %bh
                 movb    $0x07,  %bl
 
                 int     $0x10
 
-                incw    %cx
+		incw	%di
                 jmp     print_loop
         print_end:
-                movw    %cx, %ax
+		movw	4(%bp), %ax	# Get original address
+		subw	%ax, %di	# Sub final address from orig. address
+		movw	%di, %ax	# Move result to %ax for return value.
                 movw    %bp, %sp
                 popw    %bp
                 ret
@@ -173,7 +184,7 @@ reset_disk:
 
 load_second_bt:
 	movb	$0x02, %ah
-	movb	$0x01, %al
+	movb	$0x02, %al
 	movb	$0x00, %ch
 	movb	$0x02, %cl
 	movb	$0x00, %dh
@@ -216,8 +227,10 @@ error_reboot:
 				# FFFF * 16 + 0 = FFFF0 ->
 				#	1048560 - 16 bytes below 1mb
 welcome_text:
-        .ascii  "Welcome to LinksBoot!\n\rBooting...\0"
+        .ascii  "Welcome to LinksBoot!\n\rBooting...\n\0"
+copyright:
+	.ascii	"CopyRight Jakov Ferko. GPL license.\n\r\0"
 error_uns_text:
-	.ascii  "\n\rFunction not supported, or is invalid.\0"
+	.ascii  "\n\n\rFunction not supported, or is invalid.\0"
 error_text:
 	.ascii	"\n\rBoot error... Press any key to reboot.\0"
