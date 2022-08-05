@@ -28,11 +28,16 @@ boot_vars:
 	boot_drive:	.byte 0	# Boot drive number (dl)
 
 main:
-	setup_stack:
+	setup_segments:
+		cli			# Disable interupts
 		movw	$0x600, %sp	# We will setup memory in second stage bootlaoder
-		movw	$0x50, %ax	# This is temporary, we do not need much.
+					# This is temporary, we do not need much.
+		xor	%ax, %ax	# Set all segments to 0
+#		movw	%ax, %cs
+		movw	%ax, %ds
 		movw	%ax, %ss
-
+		movw	%ax, %es
+		sti			# Enable interupts
 
 	movb	%dl, boot_drive	# Save value that represents the drive
 				# we booted from
