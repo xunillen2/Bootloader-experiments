@@ -53,6 +53,8 @@ main:
 
 	call	load_second_bt     # Load second bootlaoder
 
+	loop:
+		jmp loop
 ######################
 ## SCREEN FUNCTIONS ##
 ######################

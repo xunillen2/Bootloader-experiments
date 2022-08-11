@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 
 echo "Compiling first stage bootloader..."
-as  -o boot_firststage.o boot.s
-ld --oformat binary -o boot_firststage.img -T linker.ld boot_firststage.o
+as -o boot_firststage.o boot.s
+ld.bfd --oformat binary -o boot_firststage.img -T linker.ld boot_firststage.o
 
 if [ -e boot_firststage.img ]
 then
@@ -18,7 +18,7 @@ objdump -D -b binary -m i8086 boot_firststage.img
 
 echo "Compiling second stage bootloader..."
 as -o boot_secondstage.o boot2.s
-ld --oformat binary -o boot_secondstage.img -T linker-2nd.ld boot_secondstage.o
+ld.bfd --oformat binary -o boot_secondstage.img -T linker-2nd.ld boot_secondstage.o
 
 if [ -e boot_secondstage.img ]
 then
@@ -33,9 +33,9 @@ objdump -D -b binary -m i8086 boot_secondstage.img
 
 echo -e "\nCompile successful."
 echo -e "\n\nCreating Disk image..."
-dd if=/dev/zero of=boot_fin.img bs=1024 count=1
+dd if=/dev/zero of=boot_fin.img bs=1024 count=4
 dd if=boot_firststage.img of=boot_fin.img bs=512 count=1
-dd if=boot_secondstage.img of=boot_fin.img bs=512 count=1 seek=1
+dd if=boot_secondstage.img of=boot_fin.img bs=512 seek=1
 
 sleep 0.1
 if [[ $1 = "d" ]]; then
