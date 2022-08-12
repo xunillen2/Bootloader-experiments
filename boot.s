@@ -21,8 +21,21 @@
 .globl _start
 .section .text
 
+## Boot sector ##
 _start:
-	jmp main
+	jmp main	# First 3 bytes
+	nop
+	
+	oem_name:	.ascii "LinksOS "
+	bpb:
+		bytes_per_logsec:	.word	0x200	# Sector size (in bytes)
+		logsec_per_cluster:	.byte	1	# Sectors per cluster
+		reserved_logsec:	.word	3	# 0 - boot sector, need more info. temp 3
+		atable_cnt:		.byte	2	# Number of allocation tables
+		root_dir_num:		.word	224
+		total_logsec:		.word	2880	# Total number of sectors
+		media_desc:		.byte	0xf0	# Type of media
+		logsec_per_file:	.word	9	
 
 boot_vars:
 	boot_drive:	.byte 0	# Boot drive number (dl)
