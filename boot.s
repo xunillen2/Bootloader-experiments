@@ -249,7 +249,7 @@ error_reboot:
 welcome_text:
         .ascii  "Welcome to LinksBoot!\n\rBooting...\n\0"
 copyright:
-	.ascii	"CopyRight Jakov Ferko. GPL license.\n\r\0"
+	.ascii	"CopyRight Xunillen. GPL license.\n\r\0"
 error_uns_text:
 	.ascii  "\n\n\rFunction not supported, or is invalid.\0"
 error_text:
