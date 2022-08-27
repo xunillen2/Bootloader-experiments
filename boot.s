@@ -30,12 +30,15 @@ _start:
 	bpb:
 		bytes_per_logsec:	.word	0x200	# Sector size (in bytes)
 		logsec_per_cluster:	.byte	1	# Sectors per cluster
-		reserved_logsec:	.word	3	# 0 - boot sector, need more info. temp 3
+		reserved_logsec:	.word	1	# 0 - boot sector, need more info. temp 3
 		atable_cnt:		.byte	2	# Number of allocation tables
-		root_dir_num:		.word	224
+		root_dir_num:		.word	0x200
 		total_logsec:		.word	2880	# Total number of sectors
 		media_desc:		.byte	0xf0	# Type of media
-		logsec_per_file:	.word	9	
+		logsec_per_fat:		.word	9	
+		sector_per_track:	.word	9
+		head_num:		.word	0
+		hidden_sec:		.long	0
 
 boot_vars:
 	boot_drive:	.byte 0	# Boot drive number (dl)
