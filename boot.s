@@ -29,16 +29,26 @@ _start:
 	oem_name:	.ascii "LinksOS "
 	bpb:
 		bytes_per_logsec:	.word	0x200	# Sector size (in bytes)
-		logsec_per_cluster:	.byte	1	# Sectors per cluster
-		reserved_logsec:	.word	1	# 0 - boot sector, need more info. temp 3
-		atable_cnt:		.byte	2	# Number of allocation tables
-		root_dir_num:		.word	0x200
-		total_logsec:		.word	2880	# Total number of sectors
+		logsec_per_cluster:	.byte	0x1	# Sectors per cluster
+		reserved_logsec:	.word	0x1	# 0 - boot sector, need more info. temp 3
+		atable_cnt:		.byte	0x2	# Number of allocation tables - FAT12 Always have 2
+		root_dir_num:		.word	0xc8	# Maximum number of dirs. in root dir.
+		total_logsec:		.word	0xb40	# Total number of sectors
 		media_desc:		.byte	0xf0	# Type of media
-		logsec_per_fat:		.word	9	
-		sector_per_track:	.word	9
-		head_num:		.word	0
-		hidden_sec:		.long	0
+		logsec_per_fat:		.word	0x9	# bit 0 - 0 single sided, 1 double sided 
+							# bit 1 (size) - 0 if 9 sectors per FAT, 1 if 8
+							# bit 3 (removable status) - 0 fixed, 1 removable
+							# bit 4, 5, 6, 7 unused	
+		sector_per_track:	.word	0x12	# 18 sectors per track for floppy
+		head_num:		.word	0x2	# Two head per clynder for 1.44 3 and half floppys
+		hidden_sec:		.long	0x0
+		bigsec_num:		.long	0x0
+		drive_num:		.byte	0x0	# Drive number
+		extbsignature:		.byte	0x28
+		bs:			.byte	0x0
+		drive_serial_num:	.long	0x01af82913
+		volume_label:		.ascii	"LYNX FLOPPY"
+		fs:			.ascii	"FAT12   "
 
 boot_vars:
 	boot_drive:	.byte 0	# Boot drive number (dl)

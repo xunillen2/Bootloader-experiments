@@ -31,6 +31,8 @@ _start:
 			call	error_reboot
 
 next:
+        fat_list:
+#                call    list_files
 	load_gdt:
 		call	setup_gdt_table
 		lgdt	gdt
@@ -42,8 +44,8 @@ next:
 		lidt	idt
 #		call	print_text	# Ok. This does not work beacuse we already loaded new idt.
 
-		protected:
-			call	enter_protected
+	protected:
+		call	enter_protected
 loop:
 	jmp loop
 
@@ -405,6 +407,12 @@ print_text:
                 popw    %bp
                 ret
 
+## FILES ##
+list_files:
+	pushw	$files
+	call	print_text
+	ret
+
 ## ERROR SUBROUTINES ##
 #
 # ABOUT:
@@ -448,3 +456,5 @@ error_uns_text:
        	.ascii  "\n\rFunction not supported, or is invalid.\0"
 error_text:
        	.ascii  "\n\rBoot error... Press any key to reboot.\0"
+files:
+	.ascii	"\n\rFiles:\0"
