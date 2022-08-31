@@ -31,8 +31,8 @@ _start:
 		bytes_per_logsec:	.word	0x200	# Sector size (in bytes)
 		logsec_per_cluster:	.byte	0x1	# Sectors per cluster
 		reserved_logsec:	.word	0x1	# 0 - boot sector, need more info. temp 3
-		atable_cnt:		.byte	0x2	# Number of allocation tables - FAT12 Always have 2
-		root_dir_num:		.word	0xc8	# Maximum number of dirs. in root dir.
+		fat_cnt:		.byte	0x2	# Number of allocation tables - FAT12 Always have 2
+		root_dir_num:		.word	0xe0	# Maximum number of dirs. in root dir.
 		total_logsec:		.word	0xb40	# Total number of sectors
 		media_desc:		.byte	0xf0	# Type of media
 		logsec_per_fat:		.word	0x9	# bit 0 - 0 single sided, 1 double sided 
@@ -44,8 +44,8 @@ _start:
 		hidden_sec:		.long	0x0
 		bigsec_num:		.long	0x0
 		drive_num:		.byte	0x0	# Drive number
-		extbsignature:		.byte	0x28
 		bs:			.byte	0x0
+		extbsignature:          .byte   0x29
 		drive_serial_num:	.long	0x01af82913
 		volume_label:		.ascii	"LYNX FLOPPY"
 		fs:			.ascii	"FAT12   "
@@ -71,13 +71,16 @@ main:
 	call	clear_screen       # Clear screen
 	call	reset_disk         # Reset disk
 
-        pushw   $copyright	# Print CopyRight message
-        call    print_text
+#        pushw   $copyright	# Print CopyRight message
+#        call    print_text
 
-	pushw	$welcome_text   # Print welcome message
-	call	print_text
+#	pushw	$welcome_text   # Print welcome message
+#	call	print_text
 
-	call	load_second_bt     # Load second bootlaoder
+	fat_init:
+		call	load_fat
+		jc      error_reboot
+#	call	load_second_bt     # Load second bootlaoder
 
 	loop:
 		jmp loop
@@ -259,10 +262,10 @@ error_reboot:
 	jmp	$0xffff, $0000	# Jumps to reset vector, and reboots pc
 				# FFFF * 16 + 0 = FFFF0 ->
 				#	1048560 - 16 bytes below 1mb
-welcome_text:
-        .ascii  "Welcome to LinksBoot!\n\rBooting...\n\0"
-copyright:
-	.ascii	"CopyRight Xunillen. GPL license.\n\r\0"
+#welcome_text:
+#        .ascii  "Welcome to LinksBoot!\n\rBooting...\n\0"
+#copyright:
+#	.ascii	"CopyRight Xunillen. GPL license.\n\r\0"
 error_uns_text:
 	.ascii  "\n\n\rFunction not supported, or is invalid.\0"
 error_text:
