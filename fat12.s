@@ -51,46 +51,113 @@ temp_bpb:
                                                         # bit 1 (size) - 0 if 9 sectors per FAT, 1 if 8
                                                         # bit 3 (removable status) - 0 fixed, 1 removable
                                                         # bit 4, 5, 6, 7 unused
+		sector_per_track:       .word   0x12
+		total_logsec:           .word   0xb40
+		bigsec_num:             .long   0x0
+                head_num:               .word   0x2				
+
 .globl	load_fat
 # ABOUT:
 #	Loads FAT table of drive specified in passed parameter.
 # PARAMETERS:
 #	1. Parameter 1 - Disk number	<-- 4(%bp) 
 # REGISTERS:
-#	%es:%di - used for storing calculated values and other stuff
-# MEMORY LOCATIONS:
-#	We will load FAT and and it parameters in memory location 0x700 (and up).
-#	This will be overwritten when we load GDT and IDT, but FAT driver 
-#	and it's memory locations are not in use anymore. 
-#	
-#	0x700 - Root size
-#
+#	%ax - contains start location of root dir
+#	%cx - contains size of root dir
 load_fat:
 	xorw	%ax, %ax
-	movw	%ax, %es
-	movw	$0x700, %di
 	root_size_calc:	# Each entety in root dir is 32bit. (32 * root_dir_num) / 512(sector size) 
 		movw	$0x20, %ax
 		mulw	root_dir_num
 		divw	bytes_per_logsec
-		movw	%ax, %es:(%di)	# Store root size (in sectors) in 0x700
-		incw	%di		# Move %di for next value (root start location)
+		pushw	%ax
 	root_start_calc: # FAT_cnt * sector_per_fat + reserved_secotrs
-		movw	fat_cnt, %ax
+		xor	%ax, %ax	# clean ax
+		movb	fat_cnt, %al
 		mulw	logsec_per_fat
 		addw	reserved_logsec, %ax
-		movw	%ax, %es:(%di)	# Store root size in 0x702
+
+		popw	%cx
 	read_root:
-		movw	$0x700, %di	# Reset %di to start location
-		movb	$0x02, %ah
-#		movb	%es:(%di), %al
-		movb	$0x0e, %al
-		movb	$0x01, %ch	# temp
-#		movb	%es:2(%di), %cl
-		movb	$0x13,	%cl
-		movb	$0, %dh		# temp
-		movb	$0, %dl		# temp
-		movw	$0x700, %bx
-		int	$0x13
+		pushw	$0x700
+		pushw	%cx
+		pushw	%ax
 	ret
+
+
+.globl	read_sectors
+# ABOUT
+#	4(%bp) -> start sector
+#	6(%bp) -> sectors to read
+#	8(%bp) -> address
+#
+#
+read_sectors:
+	pushw	%bp
+	movw	%sp, %bp	
+read:
+	cmpw	$0, 6(%bp)
+	je	end_read
+	calculate_lba:
+		calculate_track:
+		# track -> ((sector - 1) / sector_per_track)  ----- no + 1 if remainder is not nul
+		# sector / sector_per_track
+		xorw	%dx, %dx
+		movw	4(%bp), %ax	# Sector to read
+		movw	sector_per_track, %cx
+		divw	%cx
+		store_track:
+			pushw	%ax
+
+		calculate_sector:
+			# ((abs_track) * sector_per_track) - sector - 1
+			xor	%dx, %dx
+			movw	4(%bp), %ax
+			incw	%ax
+			movw	sector_per_track, %cx
+			divw	%cx
+			#cmpw	$0, %dx
+			#jne	store_sector
+			store_sector:
+				pushw	%dx
+
+		calculate_head:	# (total_logsec/sector_per_track/head_num/abs_track) + 1 if reminder not null
+#			movw	total_logsec, %ax
+#			movw	sector_per_track, %cx
+#			divw	%cx
+#			movw	head_num, %cx
+#			divw	%cx		# Get tracks per head
+#			movw	abs_track, %cx
+#			divw	%cx
+#			cmpw	$0, %dx
+#			jne	store_head
+#			incw	%dx
+#			store_head:
+#				movw	%ax, abs_head
+#	jmp end_read
+	xor	%ax, %ax
+	movw	%ax, %es
+	movw	8(%bp), %bx
+	popw	%ax
+	movb	%al, %cl
+	popw	%ax
+	movb	%al, %ch	
+
+	movb	$2, %ah
+	movb	$1, %al
+	movb	$0, %dh
+	movb	$0, %dl
+
+#	loop:
+#		jmp loop
+	int	$13
+
+	decw	6(%bp)
+	incw	4(%bp)
+	addw	$0x40, 8(%bp)
+	jmp	read
+	end_read:
+		movw	%bp, %sp
+		popw	%bp
+		ret
 
