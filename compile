@@ -37,7 +37,7 @@ objdump -D -b binary -m i8086 boot_secondstage.img
 echo -e "\nCompile successful."
 echo -e "\n\nCreating Disk image..."
 rm boot_fin.img
-dd if=/dev/zero of=boot_fin.img bs=512 count=2880
+dd if=/dev/zero of=boot_fin.img bs=512 count=5760
 dd if=boot_firststage.img of=boot_fin.img bs=512 count=1 conv=notrunc
 #dd if=boot_secondstage.img of=boot_fin.img bs=512 seek=1
 

@@ -33,13 +33,13 @@ _start:
 		reserved_logsec:	.word	0x1	# 0 - boot sector, need more info. temp 3
 		fat_cnt:		.byte	0x2	# Number of allocation tables - FAT12 Always have 2
 		root_dir_num:		.word	0xe0	# Maximum number of dirs. in root dir.
-		total_logsec:		.word	0xb40	# Total number of sectors
+		total_logsec:		.word	0x1680	# Total number of sectors
 		media_desc:		.byte	0xf0	# Type of media
 		logsec_per_fat:		.word	0x9	# bit 0 - 0 single sided, 1 double sided 
 							# bit 1 (size) - 0 if 9 sectors per FAT, 1 if 8
 							# bit 3 (removable status) - 0 fixed, 1 removable
 							# bit 4, 5, 6, 7 unused	
-		sector_per_track:	.word	0x12	# 18 sectors per track for floppy
+		sector_per_track:	.word	0x24	# 18 sectors per track for floppy
 		head_num:		.word	0x2	# Two head per clynder for 1.44 3 and half floppys
 		hidden_sec:		.long	0x0
 		bigsec_num:		.long	0x0
@@ -58,17 +58,19 @@ main:
 		cli			# Disable interupts
 		movw	$0x600, %sp	# We will setup memory in second stage bootlaoder
 					# This is temporary, we do not need much.
-		xor	%ax, %ax	# Set all segments to 0
-#		movw	%ax, %cs
-		movw	%ax, %ds
+		movw	$0x50, %ax
 		movw	%ax, %ss
+
+		xor	%ax, %ax	# Set all segments to 0
+		movw	%ax, %ds
 		movw	%ax, %es
+
 		sti			# Enable interupts
 
 	movb	%dl, boot_drive	# Save value that represents the drive
 				# we booted from
 
-	call	clear_screen       # Clear screen
+#	call	clear_screen       # Clear screen
 	call	reset_disk         # Reset disk
 
 #        pushw   $copyright	# Print CopyRight message
@@ -79,7 +81,10 @@ main:
 
 	fat_init:
 		call	load_fat
-		jc      error_reboot
+		jmp loop
+#		pushw	$18
+#		call	read_sectors
+#		jc      error_reboot
 #	call	load_second_bt     # Load second bootlaoder
 
 	loop:
@@ -217,24 +222,6 @@ reset_disk:
 	movw	%bp, %sp
 	popw	%bp
 	ret
-
-load_second_bt:
-	movb	$0x02, %ah
-	movb	$0x02, %al
-	movb	$0x00, %ch
-	movb	$0x02, %cl
-	movb	$0x00, %dh
-	movb	boot_drive, %dl
-
-	# Temp set registers
-	xor	%bx, %bx
-	mov	%bx, %es
-	mov	$0x7e00, %bx
-	int 	$0x13
-
-	jc	error_reboot
-
-	jmp	0x7e00
 
 ## ERROR SUBROUTINES ##
 #
