@@ -51,8 +51,8 @@ temp_bpb:
                                                         # bit 1 (size) - 0 if 9 sectors per FAT, 1 if 8
                                                         # bit 3 (removable status) - 0 fixed, 1 removable
                                                         # bit 4, 5, 6, 7 unused
-		sector_per_track:       .word   0x12
-		total_logsec:           .word   0xb40
+		sector_per_track:       .word   0x24
+		total_logsec:           .word   0x1680
 		bigsec_num:             .long   0x0
                 head_num:               .word   0x2				
 
@@ -71,17 +71,18 @@ load_fat:
 		mulw	root_dir_num
 		divw	bytes_per_logsec
 		pushw	%ax
-	root_start_calc: # FAT_cnt * sector_per_fat + reserved_secotrs
+	root_start_calc: # (FAT_cnt * sector_per_fat + reserved_secotrs)
 		xor	%ax, %ax	# clean ax
 		movb	fat_cnt, %al
 		mulw	logsec_per_fat
 		addw	reserved_logsec, %ax
-
 		popw	%cx
 	read_root:
 		pushw	$0x700
 		pushw	%cx
 		pushw	%ax
+
+		call	read_sectors
 	ret
 
 
@@ -99,65 +100,64 @@ read:
 	cmpw	$0, 6(%bp)
 	je	end_read
 	calculate_lba:
-		calculate_track:
-		# track -> ((sector - 1) / sector_per_track)  ----- no + 1 if remainder is not nul
-		# sector / sector_per_track
-		xorw	%dx, %dx
-		movw	4(%bp), %ax	# Sector to read
-		movw	sector_per_track, %cx
-		divw	%cx
-		store_track:
-			pushw	%ax
-
 		calculate_sector:
-			# ((abs_track) * sector_per_track) - sector - 1
+			# (start_sector % sector_per_track) + 1
 			xor	%dx, %dx
 			movw	4(%bp), %ax
-			incw	%ax
 			movw	sector_per_track, %cx
 			divw	%cx
-			#cmpw	$0, %dx
-			#jne	store_sector
+			incw	%dx
 			store_sector:
 				pushw	%dx
+		calculate_track:
+			xor	%dx, %dx
+			movw	sector_per_track, %ax
+			movw	$2, %bx
+			mulw	%bx
+			movw	%ax, %cx
+			movw	4(%bp), %ax
+			divw	%cx
+			store_track:
+				pushw	%ax
+		calculate_head:
+			xor	%dx, %dx
+			movw	sector_per_track, %ax
+			movw	$2, %bx
+			mulw	%bx
+			movw	%ax, %cx
+			xorw	%dx, %dx
+			movw	4(%bp), %ax
+			divw	%cx
+			movw	%dx, %ax
+			xor	%dx, %dx
+			movw	sector_per_track, %cx
+			divw	%cx
+			store_head:
+				pushw	%ax
 
-		calculate_head:	# (total_logsec/sector_per_track/head_num/abs_track) + 1 if reminder not null
-#			movw	total_logsec, %ax
-#			movw	sector_per_track, %cx
-#			divw	%cx
-#			movw	head_num, %cx
-#			divw	%cx		# Get tracks per head
-#			movw	abs_track, %cx
-#			divw	%cx
-#			cmpw	$0, %dx
-#			jne	store_head
-#			incw	%dx
-#			store_head:
-#				movw	%ax, abs_head
-#	jmp end_read
-	xor	%ax, %ax
+	xorw	%ax, %ax
 	movw	%ax, %es
 	movw	8(%bp), %bx
-	popw	%ax
+
+	movw	2(%esp), %ax	# Sector/Track
+	movb	%al, %ch
+	movw	4(%esp), %ax
 	movb	%al, %cl
-	popw	%ax
-	movb	%al, %ch	
+	movw	(%esp), %ax	# Head
+	movb	%al, %dh
 
 	movb	$2, %ah
 	movb	$1, %al
-	movb	$0, %dh
 	movb	$0, %dl
 
-#	loop:
-#		jmp loop
-	int	$13
+	int	$0x13
+	addw	$6, %sp	# Clear stack
 
 	decw	6(%bp)
 	incw	4(%bp)
-	addw	$0x40, 8(%bp)
+	addw	$0x200, 8(%bp)
 	jmp	read
 	end_read:
 		movw	%bp, %sp
 		popw	%bp
 		ret
-
