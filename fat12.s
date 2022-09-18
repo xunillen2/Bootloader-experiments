@@ -83,8 +83,7 @@ load_fat:
 		pushw	%ax
 
 		call	read_sectors
-		loop2:
-		jmp loop2
+
 		pushw	$second_stg_name
 		call	find_file
 	ret
@@ -99,7 +98,8 @@ load_fat:
 #
 read_sectors:
 	pushw	%bp
-	movw	%sp, %bp	
+	movw	%sp, %bp
+	subw	$6, %sp
 read:
 	cmpw	$0, 6(%bp)
 	je	end_read
@@ -112,7 +112,7 @@ read:
 			divw	%cx
 			incw	%dx
 			store_sector:
-				pushw	%dx
+				movw	%dx, -2(%bp)
 		calculate_track:
 			xor	%dx, %dx
 			movw	sector_per_track, %ax
@@ -122,7 +122,7 @@ read:
 			movw	4(%bp), %ax
 			divw	%cx
 			store_track:
-				pushw	%ax
+				movw	%ax, -4(%bp)
 		calculate_head:
 			xor	%dx, %dx
 			movw	sector_per_track, %ax
@@ -137,17 +137,17 @@ read:
 			movw	sector_per_track, %cx
 			divw	%cx
 			store_head:
-				pushw	%ax
+				movw	%ax, -6(%bp)
 
 	xorw	%ax, %ax
 	movw	%ax, %es
 	movw	8(%bp), %bx
 
-	movw	2(%esp), %ax	# Sector/Track
+	movw	-4(%bp), %ax	# Sector/Track
 	movb	%al, %ch
-	movw	4(%esp), %ax
+	movw	-2(%bp), %ax
 	movb	%al, %cl
-	movw	(%esp), %ax	# Head
+	movw	-6(%bp), %ax	# Head
 	movb	%al, %dh
 
 	movb	$2, %ah
@@ -155,11 +155,11 @@ read:
 	movb	$0, %dl
 
 	int	$0x13
-	addw	$4, %sp	# Clear stack
 
 	decw	6(%bp)
 	incw	4(%bp)
 	addw	$0x200, 8(%bp)
+#	jmp loop2
 	jmp	read
 	end_read:
 		movw	%bp, %sp
@@ -172,10 +172,11 @@ find_file:
 	movw	%sp, %bp
 	
 	find:
-		movw	$0x700, %bx
+		subw	$2, %sp
+		movw	$0x700, -2(%bp)
+		movw	-2(%bp), %bx
 		movw	4(%bp), %di
 		movw	$10, %cx
-		movw	$2, %dx
 		loop_chars:
 			movb	(%di), %ax
 			cmpb	%ax, (%bx)
@@ -186,18 +187,13 @@ find_file:
 			cmpw	$0, %cx
 			je	done
 		next_file:
-			loop:
-				jmp loop
-			movw	$0x20, %ax
-			subw	%cx, %ax
-			addw	%ax, %bx
-			movw	4(%bp), %di
+			loop2:
+				jmp loop2
 			movw	$10, %cx
-			decw	%dx
-			cmpw	$0, %dx
-			je	done
-			jmp	loop_chars
-			
+			movw	4(%bp), %di
+			addw	$0x20, -2(%bp)
+			movw	-2(%bp), %bx
+			jmp 	loop_chars
 	done:
 		movw	16(%bx), %ax
 		movw	%bp, %sp
