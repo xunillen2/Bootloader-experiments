@@ -83,6 +83,10 @@ load_fat:
 		pushw	%ax
 
 		call	read_sectors
+		loop2:
+		jmp loop2
+		pushw	$second_stg_name
+		call	find_file
 	ret
 
 
@@ -151,7 +155,7 @@ read:
 	movb	$0, %dl
 
 	int	$0x13
-	addw	$6, %sp	# Clear stack
+	addw	$4, %sp	# Clear stack
 
 	decw	6(%bp)
 	incw	4(%bp)
@@ -161,3 +165,44 @@ read:
 		movw	%bp, %sp
 		popw	%bp
 		ret
+#
+# First parameter: 4(%bp) second stage file name
+find_file:
+	pushw	%bp
+	movw	%sp, %bp
+	
+	find:
+		movw	$0x700, %bx
+		movw	4(%bp), %di
+		movw	$10, %cx
+		movw	$2, %dx
+		loop_chars:
+			movb	(%di), %ax
+			cmpb	%ax, (%bx)
+			jne	next_file
+			incw	%di
+			incw	%bx
+			decw	%cx
+			cmpw	$0, %cx
+			je	done
+		next_file:
+			loop:
+				jmp loop
+			movw	$0x20, %ax
+			subw	%cx, %ax
+			addw	%ax, %bx
+			movw	4(%bp), %di
+			movw	$10, %cx
+			decw	%dx
+			cmpw	$0, %dx
+			je	done
+			jmp	loop_chars
+			
+	done:
+		movw	16(%bx), %ax
+		movw	%bp, %sp
+		popw	%bp
+		ret	
+
+second_stg_name:
+	.ascii "TESTFI~1T   "
