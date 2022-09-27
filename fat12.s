@@ -73,7 +73,7 @@ load_fat:
 		mulw	root_dir_num
 		divw	bytes_per_logsec
 		pushw	%ax
-	root_start_calc: # (FAT_cnt * sector_per_fat + reserved_secotrs)
+	root_start_calc: # (FAT_cnt * sector_per_fat + reserved_secotrs) -> sector
 		xor	%ax, %ax	# clean ax
 		movb	fat_cnt, %al
 		mulw	logsec_per_fat
@@ -85,8 +85,8 @@ load_fat:
 		pushw	%ax
 		call	read_sectors
 		
-#		pushw	$second_stg_name
-#		call	find_file
+		pushw	$second_stg_name
+		call	find_file
 	movw	%bp, %sp
 	ret
 
@@ -206,38 +206,51 @@ read_sectors:
 			movw	%bp, %sp
 			popw	%bp
 			ret
+
+# ABOUT:
+#       Finds file name located in loaded root directory in memory location 0x700,
+#	and returns its cluster location and size
+#       PARAMETERS:
+#               1. Parameter 1 - Pointer to file name
+#       REGISTERS:
+#               %bx - Points to string passed by parameter 1
+#		%di - Dynamic pointer to bytes from 0-10 in root dir data loaded
+#			in memory 0x700. Incremented by 20 every file.
+#		%cx - Counter
+#		%ah - Temp. register, and return register
+#       RETURNS:
+#		%ah - cluster location
+#		%al - file size
+#	NOTE:
+#		FIX ME: If file is not found it will continue reading outside root dir.
 #
-# First parameter: 4(%bp) second stage file name
 find_file:
 	pushw	%bp
 	movw	%sp, %bp
-	
+	subw	$2, %sp
+	movw	$0x6e0, -2(%bp)
+
 	find:
-		subw	$2, %sp
-		movw	$0x700, -2(%bp)
+		addw	$0x20, -2(%bp)
 		movw	-2(%bp), %bx
 		movw	4(%bp), %di
-		movw	$10, %cx
-		loop_chars:
+		movw	$11, %cx
+	 	loop_chars:
+			test	%cx, %cx
+			jz	done
 			movb	(%di), %al
 			cmpb	%al, (%bx)
-			jne	next_file
+			jne	find
 			incw	%di
 			incw	%bx
 			decw	%cx
-			cmpw	$0, %cx
-			je	done
-		next_file:
-			movw	$10, %cx
-			movw	4(%bp), %di
-			addw	$0x20, -2(%bp)
-			movw	-2(%bp), %bx
-			jmp 	loop_chars
+			jmp	loop_chars
 	done:
-		movw	16(%bx), %ax
+		movb	15(%bx), %ah
+		movb	17(%bx), %al
 		movw	%bp, %sp
 		popw	%bp
 		ret	
 
 second_stg_name:
-	.ascii "TESTFI~1T   "
+	.ascii "TSTFILE2TXT"
