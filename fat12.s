@@ -56,6 +56,9 @@ temp_bpb:
 		bigsec_num:             .long   0x0
                 head_num:               .word   0x2				
 
+global_fat_values:
+		root_dir_end:	.word	0x700
+
 .globl	load_fat
 # ABOUT:
 #	Loads FAT table of drive specified in passed parameter.
@@ -73,8 +76,14 @@ load_fat:
 		mulw	root_dir_num
 		divw	bytes_per_logsec
 		pushw	%ax
+		movw	%ax, %cx
+		movw	$0x200, %ax
+		mulw	%cx
+		loop2:
+			jmp loop2
+		addw	%ax, root_dir_end	# Add size to current value to get end value
 	root_start_calc: # (FAT_cnt * sector_per_fat + reserved_secotrs) -> sector
-		xor	%ax, %ax	# clean ax
+		xorw	%ax, %ax	# clean ax
 		movb	fat_cnt, %al
 		mulw	logsec_per_fat
 		addw	reserved_logsec, %ax
@@ -87,6 +96,17 @@ load_fat:
 		
 		pushw	$second_stg_name
 		call	find_file
+	
+	read_fat:
+		xorw	%dx, %dx
+		movw	root_dir_end, %ax	# Div location by 0x10 as we use segmented addressing
+		movw	$0x10, %cx
+		divw	%cx
+		pushw	%ax
+		pushw	logsec_per_fat
+		pushw	reserved_logsec
+		call	read_sectors		
+
 	movw	%bp, %sp
 	ret
 
@@ -222,7 +242,10 @@ read_sectors:
 #		%ah - cluster location
 #		%al - file size
 #	NOTE:
-#		FIX ME: If file is not found it will continue reading outside root dir.
+#		FIX ME:		If file is not found it will continue reading outside root dir.
+#		FIX ME 2:	Return values are limited. 
+#				Currently First cluster and file size are returned in 8bit registers,
+#				this is not enough, as First cluster is 16bits, and file size is 32bits. 
 #
 find_file:
 	pushw	%bp
