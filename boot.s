@@ -58,8 +58,8 @@ main:
 		cli			# Disable interupts
 		movw	$0x600, %sp	# We will setup memory in second stage bootlaoder
 					# This is temporary, we do not need much.
-		movw	$0x50, %ax
-		movw	%ax, %ss
+#		movw	$0x50, %ax
+#		movw	%ax, %ss
 
 		xor	%ax, %ax	# Set all segments to 0
 		movw	%ax, %ds
@@ -81,14 +81,15 @@ main:
 
 	fat_init:
 		call	load_fat
-		jmp loop
+		jmp	end
 #		pushw	$18
 #		call	read_sectors
 #		jc      error_reboot
 #	call	load_second_bt     # Load second bootlaoder
 
-	loop:
-		jmp loop
+	end:
+		jmp end
+
 ######################
 ## SCREEN FUNCTIONS ##
 ######################
@@ -111,36 +112,36 @@ main:
 #		Number of writen bytes in %ax
 #       NOTES:
 #
-print_text:
-        pushw   %bp
-        movw    %sp, %bp
-
-        movw    4(%bp), %di
-
-        xor     %ax, %ax        # Empty counter register
-                                # Used for counting chars.
-	movw	%ax, %es
-
-        print_loop:
-                movb    %es:(%di), %al
-                cmpb    $0, %al
-                je      print_end
-
-		movb    $0x0e,  %ah
-                movb    $0x00,  %bh
-                movb    $0x07,  %bl
-
-                int     $0x10
-
-		incw	%di
-                jmp     print_loop
-        print_end:
-		movw	4(%bp), %ax	# Get original address
-		subw	%ax, %di	# Sub final address from orig. address
-		movw	%di, %ax	# Move result to %ax for return value.
-                movw    %bp, %sp
-                popw    %bp
-                ret
+#print_text:
+#        pushw   %bp
+#        movw    %sp, %bp
+#
+#        movw    4(%bp), %di
+#
+#        xor     %ax, %ax        # Empty counter register
+#                                # Used for counting chars.
+#	movw	%ax, %es
+#
+#        print_loop:
+#                movb    %es:(%di), %al
+#                cmpb    $0, %al
+#                je      print_end
+#
+#		movb    $0x0e,  %ah
+#                movb    $0x00,  %bh
+#                movb    $0x07,  %bl
+#
+#                int     $0x10
+#
+#		incw	%di
+#                jmp     print_loop
+#        print_end:
+#		movw	4(%bp), %ax	# Get original address
+#		subw	%ax, %di	# Sub final address from orig. address
+#		movw	%di, %ax	# Move result to %ax for return value.
+#                movw    %bp, %sp
+#                popw    %bp
+#                ret
 
 #
 # ABOUT:
@@ -234,12 +235,12 @@ reset_disk:
 #	and it will then reboot the system.
 #
 error_unsupported:
-	pushw   $error_uns_text
-	call    print_text      # Print function error text
+#	pushw   $error_uns_text
+#	call    print_text      # Print function error text
 	subw	$2, %sp
 error_reboot:
-	pushw	$error_text
-	call	print_text	# Print error text
+#	pushw	$error_text
+#	call	print_text	# Print error text
 	subw	$2, %sp
 
 	xor	%ax, %ax	# ah - 0x00 and it 0x16 for reading keyboard scancode
@@ -254,6 +255,8 @@ error_reboot:
 #copyright:
 #	.ascii	"CopyRight Xunillen. GPL license.\n\r\0"
 error_uns_text:
-	.ascii  "\n\n\rFunction not supported, or is invalid.\0"
+#	.ascii  "\n\n\rFunction not supported, or is invalid.\0"
+	.ascii "F\0"
 error_text:
-	.ascii	"\n\rBoot error... Press any key to reboot.\0"
+#	.ascii	"\n\rBoot error... Press any key to reboot.\0"
+	.ascii "E\0"

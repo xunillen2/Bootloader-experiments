@@ -65,6 +65,8 @@ temp_bpb:
 #	%ax - contains start location of root dir
 #	%cx - contains size of root dir
 load_fat:
+	movw	%sp, %bp
+
 	xorw	%ax, %ax
 	root_size_calc:	# Each entety in root dir is 32bit. (32 * root_dir_num) / 512(sector size) 
 		movw	$0x20, %ax
@@ -78,93 +80,132 @@ load_fat:
 		addw	reserved_logsec, %ax
 		popw	%cx
 	read_root:
-		pushw	$0x700
+		pushw	$0x70
 		pushw	%cx
 		pushw	%ax
-
 		call	read_sectors
-
-		pushw	$second_stg_name
-		call	find_file
+		
+#		pushw	$second_stg_name
+#		call	find_file
+	movw	%bp, %sp
 	ret
 
 
-.globl	read_sectors
-# ABOUT
-#	4(%bp) -> start sector
-#	6(%bp) -> sectors to read
-#	8(%bp) -> address
+# ABOUT:
+#	Calculates CHS from given LBA value.
+#	Calculations:
+#		example values:
+#			sector_per_tracks: 36
 #
+#		head:	(lba % (sector_per_track * 2)) / sector_per_track
+#			Changes every 36 sector, example:	lba=8, head=0
+#							  	lba=36, head=1
+#								lba=72, head=0
+#		track:	(lba / (sector_per_track * 2))
+#			Increments every 72 sector. Why? Because we need to read tracks on all heads
+#			before going to next track.
+#		sector: (lba % sector_per_track + 1)
+#			Goes to maxiumum of 35, then resets, as we read 36 sectors per track.	
+#						example:
+#								lba=35, sector=36
+#								lba=36, sector=1
+#								lba=37, sector=2
+#	PARAMETERS:
+#		1. Parameter 1 - LBA Value	-> 4(%bp)
+#	REGISTERS:
+#		NaN, Used only for calculation.
+#	RETURNS:
+#		%ch - Track
+#		%cl - Sector
+#		%dh - Head
 #
-read_sectors:
+calculate_lba:
 	pushw	%bp
 	movw	%sp, %bp
-	subw	$6, %sp
-read:
-	cmpw	$0, 6(%bp)
-	je	end_read
-	calculate_lba:
-		calculate_sector:
-			# (start_sector % sector_per_track) + 1
-			xor	%dx, %dx
-			movw	4(%bp), %ax
-			movw	sector_per_track, %cx
-			divw	%cx
-			incw	%dx
-			store_sector:
-				movw	%dx, -2(%bp)
-		calculate_track:
-			xor	%dx, %dx
-			movw	sector_per_track, %ax
-			movw	$2, %bx
-			mulw	%bx
-			movw	%ax, %cx
-			movw	4(%bp), %ax
-			divw	%cx
-			store_track:
-				movw	%ax, -4(%bp)
-		calculate_head:
-			xor	%dx, %dx
-			movw	sector_per_track, %ax
-			movw	$2, %bx
-			mulw	%bx
-			movw	%ax, %cx
-			xorw	%dx, %dx
-			movw	4(%bp), %ax
-			divw	%cx
-			movw	%dx, %ax
-			xor	%dx, %dx
-			movw	sector_per_track, %cx
-			divw	%cx
-			store_head:
-				movw	%ax, -6(%bp)
+	subw	$2, %sp
 
-	xorw	%ax, %ax
-	movw	%ax, %es
-	movw	8(%bp), %bx
-
-	movw	-4(%bp), %ax	# Sector/Track
-	movb	%al, %ch
-	movw	-2(%bp), %ax
-	movb	%al, %cl
-	movw	-6(%bp), %ax	# Head
-	movb	%al, %dh
-
-	movb	$2, %ah
-	movb	$1, %al
-	movb	$0, %dl
-
-	int	$0x13
-
-	decw	6(%bp)
-	incw	4(%bp)
-	addw	$0x200, 8(%bp)
-#	jmp loop2
-	jmp	read
-	end_read:
+	movw	sector_per_track, %ax
+	movw	$2, %cx
+	mulw	%cx
+	movw	%ax, -2(%bp)	# Calculate (secto_per_track * 2) as we use
+				# it in tow calculations
+	head:
+		xorw	%dx, %dx	# Clear reminder
+		movw	-2(%bp), %cx
+		movw	4(%bp), %ax
+		divw	%cx		# (lba % (sector_per_track * 2))
+		movw	%dx, %ax
+		xor	%dx, %dx	# Clear reminder
+		movw	sector_per_track, %cx
+		divw	%cx		# (...) / sector_per_track
+		pushw	%ax		# Save value
+	track:
+		xor	%dx, %dx
+		movw	-2(%bp), %cx
+		movw	4(%bp), %ax
+		divw	%cx
+		pushw	%ax
+	sector:
+		xor	%dx, %dx
+		movw	4(%bp), %ax
+		movw	sector_per_track, %cx
+		divw	%cx
+		incw	%dx
+	end:
+		# Move values to intended return registers
+		movb	%dl, %cl
+		popw	%ax	# Track
+		movb	%al, %ch
+		popw	%ax	# Head
+		movb	%al, %dh
 		movw	%bp, %sp
 		popw	%bp
 		ret
+
+
+# ABOUT:
+#	Reads sectors from disk from start sector to end sector (definied by sector to read),
+#	and saves data from sectors to address 0x700
+#	Values on stack are directly modified to save memory.
+#       PARAMETERS:
+#               1. Parameter 1 - Start sector		-> 4(%bp)
+#		2. Parameter 2 - Sectors to read 	-> 6(%bp)
+#		3. Parameter 3 - Store address		-> 8(%bp)
+#       REGISTERS:
+#               NaN, Used only for functions
+#       RETURNS:
+#		%ax - Sectors read - not implemented. Returns nothing
+#	NOTE:
+#		Parameter 3. is used for segmented addressing. Always pass address/16
+read_sectors:
+	pushw	%bp
+	movw	%sp, %bp
+
+	# Set segments to 0x700
+	movw	8(%bp), %es
+	xorw	%bx, %bx
+	read:
+		cmpw	$0, 6(%bp)
+		je	end_read
+
+		pushw	4(%bp)
+		call	calculate_lba
+
+		movb	$2, %ah
+		movb	$1, %al
+		movb	$0, %dl
+		int	$0x13
+
+		decw	6(%bp)
+		incw	4(%bp)
+		addw	$0x200, %bx	# Bug:	We are limited to 63kb read, as bx will overflow.
+					#	Add check to move segment and reset bx to mitigate
+					#	this problem
+		jmp	read
+		end_read:
+			movw	%bp, %sp
+			popw	%bp
+			ret
 #
 # First parameter: 4(%bp) second stage file name
 find_file:
@@ -178,8 +219,8 @@ find_file:
 		movw	4(%bp), %di
 		movw	$10, %cx
 		loop_chars:
-			movb	(%di), %ax
-			cmpb	%ax, (%bx)
+			movb	(%di), %al
+			cmpb	%al, (%bx)
 			jne	next_file
 			incw	%di
 			incw	%bx
@@ -187,8 +228,6 @@ find_file:
 			cmpw	$0, %cx
 			je	done
 		next_file:
-			loop2:
-				jmp loop2
 			movw	$10, %cx
 			movw	4(%bp), %di
 			addw	$0x20, -2(%bp)
