@@ -40,6 +40,12 @@
 #			- 24-25byte	Last modified date
 #			- 26-27byte	First cluster		- Important
 #			- 28-32byte	File size		- Important
+#
+#	Data region:
+#		Contains data
+#		Always starts with cluster 2.
+#		Calcualtion: Root dir end + 1 log_sec
+#
 #		
 .code16
 temp_bpb:
@@ -55,10 +61,12 @@ temp_bpb:
 		total_logsec:           .word   0x1680
 		bigsec_num:             .long   0x0
                 head_num:               .word   0x2				
-
+		logsec_per_cluster:     .byte   0x1
 global_fat_values:
-		root_dir_end:	.word	0x700
-
+		root_size:	.word	0x0	# Size of root dir
+		root_end_mem:	.word	0x700	# End of root dir in memory
+		fat_size:	.word	0x0	# Size of fat (total, fat*2)
+		data_start:	.word	0x0	# Start address of data region on disk
 .globl	load_fat
 # ABOUT:
 #	Loads FAT table of drive specified in passed parameter.
@@ -67,25 +75,27 @@ global_fat_values:
 # REGISTERS:
 #	%ax - contains start location of root dir
 #	%cx - contains size of root dir
+# NOTE: This is a fucking mess. Move calculation for global driver variables from reading subfunctions.
+#
 load_fat:
 	movw	%sp, %bp
 
-	xorw	%ax, %ax
+	xorw	%bx, %bx
 	root_size_calc:	# Each entety in root dir is 32bit. (32 * root_dir_num) / 512(sector size) 
 		movw	$0x20, %ax
 		mulw	root_dir_num
+		addw	%ax, root_end_mem
+		movw	%ax, root_size		# Populate root size and root end var
 		divw	bytes_per_logsec
 		pushw	%ax
-		movw	%ax, %cx
-		movw	$0x200, %ax
-		mulw	%cx
-		loop2:
-			jmp loop2
-		addw	%ax, root_dir_end	# Add size to current value to get end value
 	root_start_calc: # (FAT_cnt * sector_per_fat + reserved_secotrs) -> sector
 		xorw	%ax, %ax	# clean ax
 		movb	fat_cnt, %al
 		mulw	logsec_per_fat
+		pushw	%ax			# Calculatefat size
+		mulw	bytes_per_logsec
+		movw	%ax, fat_size
+		popw	%ax
 		addw	reserved_logsec, %ax
 		popw	%cx
 	read_root:
@@ -96,16 +106,24 @@ load_fat:
 		
 		pushw	$second_stg_name
 		call	find_file
-	
 	read_fat:
 		xorw	%dx, %dx
-		movw	root_dir_end, %ax	# Div location by 0x10 as we use segmented addressing
+		movw	root_end_mem, %ax	# Div location by 0x10 as we use segmented addressing
 		movw	$0x10, %cx
 		divw	%cx
 		pushw	%ax
 		pushw	logsec_per_fat
 		pushw	reserved_logsec
-		call	read_sectors		
+		call	read_sectors
+	read_data:
+		xorw	%ax, %ax
+		addw	bytes_per_logsec, %ax	# Calculate start of data region on disk (reserved + fat + root + bytes_per_logsec)
+		addw	fat_size, %ax
+		addw	root_size, %ax
+		addw	bytes_per_logsec, %ax
+		movw	%ax, data_start
+	loop:
+		jmp loop
 
 	movw	%bp, %sp
 	ret
