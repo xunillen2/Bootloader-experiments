@@ -46,7 +46,13 @@
 #		Always starts with cluster 2.
 #		Calcualtion: Root dir end + 1 log_sec
 #
-#		
+#	DRIVER NOTES:
+#		This driver is unstable and not fully tested. This is only a prototype driver so
+#		i can load second stage bootloader. Only tested with 2.88M floopy disk in qemu and
+#		with USB 2.88M floppy emulation on real machine.
+#  		Will rewrite it later.
+#
+
 .code16
 temp_bpb:
                 bytes_per_logsec:       .word   0x200   # Sector size (in bytes)
