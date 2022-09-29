@@ -166,23 +166,23 @@ main:
 #
 #       NOTES:
 #
-clear_screen:
-        pushw   %bp
-        movw    %sp, %bp
+#clear_screen:
+#        pushw   %bp
+#        movw    %sp, %bp
 
-        movb    $0x07, %ah
-        movb	$0x00, %al
-        movb    $0x07, %bh
+#        movb    $0x07, %ah
+#        movb	$0x00, %al
+#        movb    $0x07, %bh
 
-        xor	%cx, %cx
-        movb    $0x19, %dh
-        movb    $0x50, %dl
+#        xor	%cx, %cx
+#        movb    $0x19, %dh
+#        movb    $0x50, %dl
 
-        int     $0x10
+#        int     $0x10
 
-	movw	%bp, %sp
-	popw	%bp
-	ret
+#	movw	%bp, %sp
+#	popw	%bp
+#	ret
 
 ####################
 ## ATA OPERATIONS ##
