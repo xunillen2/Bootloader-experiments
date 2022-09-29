@@ -263,13 +263,17 @@ read_sectors:
 #		%cx - Counter
 #		%ah - Temp. register, and return register
 #       RETURNS:
-#		%ah - cluster location
+#		%ax - cluster location
 #		%al - file size
 #	NOTE:
-#		FIX ME:		If file is not found it will continue reading outside root dir.
-#		FIX ME 2:	Return values are limited. 
-#				Currently First cluster and file size are returned in 8bit registers,
-#				this is not enough, as First cluster is 16bits, and file size is 32bits. 
+#		FIX ME:		If file is not found funciton will continue reading outside root dir.
+#				Not a big problem as we mostly give file name as parameter that exists 
+#				in root dir.
+#		FIX ME 2:	First cluster is fully returned in %ax, but file size is limited
+#				to 16bit instead of 32bit, so max correct reported size is 63kb.
+#				If file is bigger than that, size report should be considered bad.
+#				Mitigation exists for reading file data, and that is to use cluster
+#				information in FAT table.
 #
 find_file:
 	pushw	%bp
@@ -293,11 +297,52 @@ find_file:
 			decw	%cx
 			jmp	loop_chars
 	done:
-		movb	15(%bx), %ah
-		movb	17(%bx), %al
+		movw	15(%bx), %ax
+		movw	17(%bx), %cx
 		movw	%bp, %sp
 		popw	%bp
 		ret	
+
+# ABOUT:
+#	Calcualte and read clusters from disk containing file data.
+#	1. Calculates cluster:
+#			Gets 12bit value from FAT table from cluster number given by parameter, 
+#			performs bitwise operation and views result value for cluster meaning.
+#			Calculates in loop by reading next 12bit value until 0xff8-0xfff is not hit.
+#			If value is "Rand value" jump to that cluster and continue reading.
+#
+#			Cluster Meanings:
+#			Value		Meaning
+#			0x00 		Unused
+#			0xff0-0xff6	Reserved cluster
+#			0xff7		Bad cluster
+#			0xff8-0xfff	Last cluster in file
+#			Rand value	Number of the next cluster in the file
+#					(As clusters of file data do not need to be linear)
+#	2. Read file
+#			Read number of sectors defined by logsec_per_cluster from data_start + cluster_address
+#			cluster_number = (cluster_number - 2) * bytes_per_logsec
+#			(-2 because entry 0 and 1 in FAT table are reserved and not used. ) 
+#       PARAMETERS:
+#               1. Parameter 1 - File start cluster
+#		2. Parameter 2 - File size	# Not needed 
+#		3. Parameter 3 - Mem. address where to save file data 
+#       REGISTERS:
+#               NaN, Used only for functions
+#       RETURNS:
+#               %ax - Number of cluster readed   
+#       NOTE:
+#               Parameter 3. is used for segmented addressing. Always pass address/16
+#		Fat table start address on disk = reserved_logsec
+read_file:
+	pushw	%bp
+	movw	%sp, %bp
+
+
+	end_readf:
+		movw	%bp, %sp
+		popw	%bp
+		ret
 
 second_stg_name:
 	.ascii "TSTFILE2TXT"
