@@ -48,11 +48,12 @@
 #
 #	DRIVER NOTES:
 #		This driver is unstable and not fully tested. This is only a prototype driver so
-#		i can load second stage bootloader. Only tested with 2.88M floopy disk in qemu and
-#		with USB 2.88M floppy emulation on real machine.
+#		I can load second stage bootloader and make basic interface. 
+#		Only tested with 2.88M floopy disk in qemu and with USB 2.88M floppy emulation on real machine.
 #  		Will rewrite it later.
 #
-
+#		As temporary solution for bug in read_file, data from files need to be liner on disk
+#
 .code16
 temp_bpb:
                 bytes_per_logsec:       .word   0x200   # Sector size (in bytes)
@@ -64,8 +65,8 @@ temp_bpb:
                                                         # bit 3 (removable status) - 0 fixed, 1 removable
                                                         # bit 4, 5, 6, 7 unused
 		sector_per_track:       .word   0x24
-		total_logsec:           .word   0x1680
-		bigsec_num:             .long   0x0
+#		total_logsec:           .word   0x1680
+#		bigsec_num:             .long   0x0
                 head_num:               .word   0x2				
 		logsec_per_cluster:     .byte   0x1
 global_fat_values:
@@ -108,10 +109,7 @@ load_fat:
 		pushw	$0x70
 		pushw	%cx
 		pushw	%ax
-		call	read_sectors
-		
-		pushw	$second_stg_name
-		call	find_file
+		call	read_sectors		
 	read_fat:
 		xorw	%dx, %dx
 		movw	root_end_mem, %ax	# Div location by 0x10 as we use segmented addressing
@@ -128,9 +126,17 @@ load_fat:
 		addw	root_size, %ax
 		addw	bytes_per_logsec, %ax
 		movw	%ax, data_start
+
+		pushw	$second_stg_name	# Find file. 
+		call	find_file		# Add check to see if file exists
+		
+		pushw	$0x800
+		pushw	%cx
+		pushw	%ax
+		call	read_file_linear
+
 	loop:
 		jmp loop
-
 	movw	%bp, %sp
 	ret
 
@@ -264,7 +270,7 @@ read_sectors:
 #		%ah - Temp. register, and return register
 #       RETURNS:
 #		%ax - cluster location
-#		%al - file size
+#		%cx - file size
 #	NOTE:
 #		FIX ME:		If file is not found funciton will continue reading outside root dir.
 #				Not a big problem as we mostly give file name as parameter that exists 
@@ -334,15 +340,71 @@ find_file:
 #       NOTE:
 #               Parameter 3. is used for segmented addressing. Always pass address/16
 #		Fat table start address on disk = reserved_logsec
-read_file:
+#	NOTE 2:
+#		As we are very limited by memory I decided to make things as simple as i can.
+#		That means we will not load FAT table, and we wont use cluster calculation,
+#		for second stage bootloader.
+#		For loading second stage bootloader, LINKSCND.BTT (aka. second stage) will need
+#		to be linear on disk, for that we use minimal function read_file_linear that does
+#		not contain code to calculate and check cluster status from FAT table loaded in memory.
+#		Use this function only when realy needed, as read errors are expected.
+#		
+#		read_file is main function for reading file data from disk, it contains cluster
+#		status check code, and proper reading. So always use that function for reading.
+read_file_linear:
 	pushw	%bp
 	movw	%sp, %bp
+#	subw	$4, %sp	# reserve some space for vars
+
+#	movw	root_end_mem, %di
+#	addw	4(%bp), %di
+#	addw	$2, %di
+
+	pushw	8(%bp)
+
+	xorw	%dx, %dx
+	movw	6(%bp), %ax
+	movw	$0x200, %cx
+	divw	%cx
+	incw	%ax
+	mulw	logsec_per_cluster
+	pushw	%ax
+
+	xorw	%dx, %dx
+	movw	data_start, %ax
+	movw	$0x200, %cx		# Move translation from address to sector in fucntion to save memory
+	divw	%cx
+	addw	4(%bp), %ax
+	subw	$3, %ax
+	pushw	%ax
 
 
-	end_readf:
+	call	read_sectors
+#	read_calculate:
+#		
+#		pushw	8(%bp)
+#		pushw	logsec_per_cluster
+#		pushw	-4(%bp)
+#		call	read_sectors
+
+#		cmpw	$0, -2(%bp)
+#		jmp	end_read_calculate
+#		decw	-2(%bp)
+#		incw	-4(%bp)
+#		addw	$0x200, 8(%bp)
+#		jmp	loop		
+#		jmp	read_calculate
+		
+#		even:
+#		odd: 
+
+#		addw	logsec_per_cluster, %cx
+#		addw	$2, %di
+
+	end_read_calculate:
 		movw	%bp, %sp
 		popw	%bp
 		ret
 
 second_stg_name:
-	.ascii "TSTFILE2TXT"
+	.ascii "TSTFILE3TXT"

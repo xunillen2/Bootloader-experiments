@@ -81,7 +81,8 @@ main:
 
 	fat_init:
 		call	load_fat
-		jmp	end
+	jmp_second:
+#		jmp	0x8000
 #		pushw	$18
 #		call	read_sectors
 #		jc      error_reboot
@@ -214,11 +215,11 @@ reset_disk:
 	movb	boot_drive, %dl		# Using 0x80 to use first disk
 	int	$0x13
 
-	jc	error_reboot		# If carry flag is set, error occured
-	cmpb	$0x86,	%ah		# If %ah is set to 0x86 -> unsupported function
-	je	error_unsupported
-	cmpb	$0x80,	%ah		# If %ag is set to 0x80 -> Invalid function
-	je	error_unsupported
+#	jc	error_reboot		# If carry flag is set, error occured
+#	cmpb	$0x86,	%ah		# If %ah is set to 0x86 -> unsupported function
+#	je	error_unsupported
+#	cmpb	$0x80,	%ah		# If %ag is set to 0x80 -> Invalid function
+#	je	error_unsupported
 
 	movw	%bp, %sp
 	popw	%bp
@@ -234,20 +235,20 @@ reset_disk:
 #	which will print message, and wait for user input (int 0x16, ah 0x00),
 #	and it will then reboot the system.
 #
-error_unsupported:
+#error_unsupported:
 #	pushw   $error_uns_text
 #	call    print_text      # Print function error text
-	subw	$2, %sp
-error_reboot:
+#	subw	$2, %sp
+#error_reboot:
 #	pushw	$error_text
 #	call	print_text	# Print error text
-	subw	$2, %sp
+#	subw	$2, %sp
 
-	xor	%ax, %ax	# ah - 0x00 and it 0x16 for reading keyboard scancode
-	int	$0x16		# Contines executing after any key on keyboard
-				# has been pressed
-
-	jmp	$0xffff, $0000	# Jumps to reset vector, and reboots pc
+#	xor	%ax, %ax	# ah - 0x00 and it 0x16 for reading keyboard scancode
+#	int	$0x16		# Contines executing after any key on keyboard
+#				# has been pressed
+#
+#	jmp	$0xffff, $0000	# Jumps to reset vector, and reboots pc
 				# FFFF * 16 + 0 = FFFF0 ->
 				#	1048560 - 16 bytes below 1mb
 #welcome_text:
