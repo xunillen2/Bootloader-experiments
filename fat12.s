@@ -135,8 +135,6 @@ load_fat:
 		pushw	%ax
 		call	read_file_linear
 
-	loop:
-		jmp loop
 	movw	%bp, %sp
 	ret
 
@@ -309,6 +307,20 @@ find_file:
 		popw	%bp
 		ret	
 
+
+# ABOUT: Translates physical address on disk to cluster
+# PARAMETERS: 
+#		%ax - Physical address on disk 
+# RETURN:
+#		%ax - Cluster number
+address_to_sector:
+	pushw	%cx
+	xorw	%dx, %dx
+	movw	bytes_per_logsec, %cx
+	divw	%cx
+	popw	%cx
+	ret
+
 # ABOUT:
 #	Calcualte and read clusters from disk containing file data.
 #	1. Calculates cluster:
@@ -362,25 +374,19 @@ read_file_linear:
 
 	pushw	8(%bp)
 
-	xorw	%dx, %dx
 	movw	6(%bp), %ax
-	movw	$0x200, %cx
-	divw	%cx
+	call	address_to_sector
 	incw	%ax
-	mulw	logsec_per_cluster
 	pushw	%ax
-
-	xorw	%dx, %dx
+	
 	movw	data_start, %ax
-	movw	$0x200, %cx		# Move translation from address to sector in fucntion to save memory
-	divw	%cx
+	call	address_to_sector
 	addw	4(%bp), %ax
 	subw	$3, %ax
 	pushw	%ax
 
-
-	call	read_sectors
-#	read_calculate:
+	call 	read_sectors
+#	read_calculate:		# Old prototype code from original read_file function (with support for cluster table)
 #		
 #		pushw	8(%bp)
 #		pushw	logsec_per_cluster
