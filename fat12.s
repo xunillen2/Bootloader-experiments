@@ -110,7 +110,7 @@ load_fat:
 		pushw	%cx
 		pushw	%ax
 		call	read_sectors		
-	read_fat:
+	read_fat_table:
 		xorw	%dx, %dx
 		movw	root_end_mem, %ax	# Div location by 0x10 as we use segmented addressing
 		movw	$0x10, %cx
@@ -119,7 +119,7 @@ load_fat:
 		pushw	logsec_per_fat
 		pushw	reserved_logsec
 		call	read_sectors
-	read_data:
+	data_start_calculation:
 		xorw	%ax, %ax
 		addw	bytes_per_logsec, %ax	# Calculate start of data region on disk (reserved + fat + root + bytes_per_logsec)
 		addw	fat_size, %ax
@@ -127,13 +127,13 @@ load_fat:
 		addw	bytes_per_logsec, %ax
 		movw	%ax, data_start
 
-		pushw	$second_stg_name	# Find file. 
-		call	find_file		# Add check to see if file exists
+#		pushw	$second_stg_name	# Find file. 
+#		call	find_file		# Add check to see if file exists
 		
-		pushw	$0x800
-		pushw	%cx
-		pushw	%ax
-		call	read_file_linear
+#		pushw	$0x800
+#		pushw	%cx
+#		pushw	%ax
+#		call	read_file_linear
 
 	movw	%bp, %sp
 	ret
@@ -254,7 +254,7 @@ read_sectors:
 			movw	%bp, %sp
 			popw	%bp
 			ret
-
+.globl find_file
 # ABOUT:
 #       Finds file name located in loaded root directory in memory location 0x700,
 #	and returns its cluster location and size
@@ -321,6 +321,7 @@ address_to_sector:
 	popw	%cx
 	ret
 
+.globl read_file_linear
 # ABOUT:
 #	Calcualte and read clusters from disk containing file data.
 #	1. Calculates cluster:
@@ -412,5 +413,3 @@ read_file_linear:
 		popw	%bp
 		ret
 
-second_stg_name:
-	.ascii "TSTFILE3TXT"

@@ -81,7 +81,14 @@ main:
 
 	fat_init:
 		call	load_fat
-	jmp_second:
+	load_second:
+		pushw	$second_stage_name
+		call    find_file
+		pushw	$0x800
+		pushw	%cx
+		pushw	%ax
+		call	read_file_linear				
+#	jmp_second:
 #		jmp	0x8000
 #		pushw	$18
 #		call	read_sectors
@@ -212,7 +219,7 @@ reset_disk:
 	movw	%sp, %bp
 
 	xor	%ax, %ax		# For reseting disk system
-	movb	boot_drive, %dl		# Using 0x80 to use first disk
+	Movb	boot_drive, %dl		# Using 0x80 to use first disk
 	int	$0x13
 
 #	jc	error_reboot		# If carry flag is set, error occured
@@ -261,3 +268,5 @@ error_uns_text:
 error_text:
 #	.ascii	"\n\rBoot error... Press any key to reboot.\0"
 	.ascii "E\0"
+second_stage_name:
+	.ascii "LINKSCNDBTT"
