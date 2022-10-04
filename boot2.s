@@ -4,6 +4,12 @@
 .section .text
 
 _start:
+	startup_messages:
+		call	clear_screen
+		pushw	$copyright
+		call	print_text
+		pushw	$welcome_text
+		call	print_text
 
 	### A20 ###
 	call	a20_status
@@ -375,7 +381,29 @@ enter_protected:
   clear_prefetch_queue:
 	ret
 
-# Temp print function until i dont move it to seperate file.
+
+######################
+## SCREEN FUNCTIONS ##
+######################
+# INT 10 - 17th int vector
+#       Interrupt handler that BIOS sets up. They provide video services ->
+#       Video mode (0h), cursor position (02h), get cursor position (02h)...
+#
+# ABOUT:
+#       Prints text from given address until null char is hit.
+#       INT $0x10
+#       PARAMETERS:
+#               1. Parameter 1 - Address to data to print       <-- 4(%bp)
+#       REGISTERS:
+#               %ah - 0x0e - function code
+#               %al - Caracter to output
+#               %bh - Page number
+#               %bl - Color
+#               %ax - Printed characters
+#       RETURNS:
+#               Number of writen bytes in %ax
+#       NOTES:
+#
 print_text:
         pushw   %bp
         movw    %sp, %bp
@@ -406,6 +434,46 @@ print_text:
                 movw    %bp, %sp
                 popw    %bp
                 ret
+# ABOUT:
+#       Clears screen
+#       INT $0x10
+#       PARAMETERS:
+#
+#       REGISTERS:
+#               %ah - 0x6 - Function code to scroll up
+#                               (0x7 for down)
+#               %al - Lines to scroll (down or up) if 0 (clear),
+#                               then ch, cl, dh, dl are used
+#               %bh - Background color -> high four bits are for background,
+#                               and for low are for foregorund
+#                               (see BIOS color attributes)
+#               %ch - Upper row number
+#               %cl - Left column number
+#               %dh - Lower row number
+#               %dl - Right column number
+#
+#       RETURNS:
+#
+#       NOTES:
+#
+clear_screen:
+        pushw   %bp
+        movw    %sp, %bp
+
+        movb    $0x07, %ah
+        movb    $0x00, %al
+        movb    $0x07, %bh
+
+        xor     %cx, %cx
+        movb    $0x19, %dh
+        movb    $0x50, %dl
+
+        int     $0x10
+
+        movw    %bp, %sp
+        popw    %bp
+        ret
+
 
 ## FILES ##
 list_files:
@@ -439,7 +507,10 @@ error_reboot:
         jmp     $0xffff, $0000  # Jumps to reset vector, and reboots pc
                                 # FFFF * 16 + 0 = FFFF0 ->
                                 #       1048560 - 16 bytes below 1mb
-
+welcome_text:
+        .ascii  "Welcome to LinksBoot!\n\rBooting...\n\0"
+copyright:
+       .ascii  "CopyRight Xunillen. GPL license.\n\r\0"
 a20_line_enabled:
 	.ascii	"\n\rA20 Line ENABLED\0"
 a20_line_disabled:
