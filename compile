@@ -20,9 +20,9 @@ objdump -D -b binary -m i8086 boot_firststage.img
 
 echo "Compiling second stage bootloader..."
 as -o boot_secondstage.o boot2.s
-ld.bfd --oformat binary -o boot_secondstage.img -T linker-2nd.ld boot_secondstage.o fat12.o
+ld.bfd --oformat binary -o LINKSCND.BTT -T linker-2nd.ld boot_secondstage.o fat12.o
 
-if [ -e boot_secondstage.img ]
+if [ -e LINKSCND.BTT ]
 then
         echo "Second stage bootloder compilation OK"
 else
@@ -32,14 +32,13 @@ fi
 
 echo -e "\n\nobjdump output - Second stage bootloader"
 echo "####################"
-objdump -D -b binary -m i8086 boot_secondstage.img
+objdump -D -b binary -m i8086 LINKSCND.BTT
 
 echo -e "\nCompile successful."
 echo -e "\n\nCreating Disk image..."
 rm boot_fin.img
 dd if=/dev/zero of=boot_fin.img bs=512 count=5760
 dd if=boot_firststage.img of=boot_fin.img bs=512 count=1 conv=notrunc
-#dd if=boot_secondstage.img of=boot_fin.img bs=512 seek=1
 
 echo -e "\n\hexdump output - Full image"
 echo "####################"
