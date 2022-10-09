@@ -71,21 +71,29 @@ temp_bpb:
 		logsec_per_cluster:     .byte   0x1
 global_fat_values:
 		root_size:	.word	0x0	# Size of root dir
-		root_end_mem:	.word	0x700	# End of root dir in memory
+		root_start_mem:	.word	0x0	# Start of root dir in memory
+		root_end_mem:	.word	0x0	# End of root dir in memory
 		fat_size:	.word	0x0	# Size of fat (total, fat*2)
 		data_start:	.word	0x0	# Start address of data region on disk
 .globl	load_fat
 # ABOUT:
 #	Loads FAT table of drive specified in passed parameter.
 # PARAMETERS:
-#	1. Parameter 1 - Disk number	<-- 4(%bp) 
+#	1. Parameter 1 - Store Address	<-- 4(%bp)
 # REGISTERS:
 #	%ax - contains start location of root dir
 #	%cx - contains size of root dir
 # NOTE: This is a fucking mess. Move calculation for global driver variables from reading subfunctions.
 #
 load_fat:
+	pushw	%bp
 	movw	%sp, %bp
+
+	movw	4(%bp), %ax	# Move start store address to root_end_mem and root_start_mem
+	movw	$0x10, %cx
+	mulw	%cx
+	movw	%ax, root_end_mem
+	movw	%ax, root_start_mem
 
 	xorw	%bx, %bx
 	root_size_calc:	# Each entety in root dir is 32bit. (32 * root_dir_num) / 512(sector size) 
@@ -106,7 +114,7 @@ load_fat:
 		addw	reserved_logsec, %ax
 		popw	%cx
 	read_root:
-		pushw	$0x70
+		pushw	4(%bp)
 		pushw	%cx
 		pushw	%ax
 		call	read_sectors		
@@ -127,15 +135,8 @@ load_fat:
 		addw	bytes_per_logsec, %ax
 		movw	%ax, data_start
 
-#		pushw	$second_stg_name	# Find file. 
-#		call	find_file		# Add check to see if file exists
-		
-#		pushw	$0x800
-#		pushw	%cx
-#		pushw	%ax
-#		call	read_file_linear
-
 	movw	%bp, %sp
+	popw	%bp
 	ret
 
 
@@ -213,7 +214,7 @@ calculate_lba:
 
 # ABOUT:
 #	Reads sectors from disk from start sector to end sector (definied by sector to read),
-#	and saves data from sectors to address 0x700
+#	and saves data from sectors to address given by parameter 3
 #	Values on stack are directly modified to save memory.
 #       PARAMETERS:
 #               1. Parameter 1 - Start sector		-> 4(%bp)
@@ -229,7 +230,7 @@ read_sectors:
 	pushw	%bp
 	movw	%sp, %bp
 
-	# Set segments to 0x700
+	# Set segments to pointing address
 	movw	8(%bp), %es
 	xorw	%bx, %bx
 	read:
@@ -263,7 +264,7 @@ read_sectors:
 #       REGISTERS:
 #               %bx - Points to string passed by parameter 1
 #		%di - Dynamic pointer to bytes from 0-10 in root dir data loaded
-#			in memory 0x700. Incremented by 20 every file.
+#			in memory address pointed by root_start. Incremented by 20 every file.
 #		%cx - Counter
 #		%ah - Temp. register, and return register
 #       RETURNS:
@@ -283,8 +284,9 @@ find_file:
 	pushw	%bp
 	movw	%sp, %bp
 	subw	$2, %sp
-	movw	$0x6e0, -2(%bp)
-
+	movw	root_start_mem, %ax
+	subw	$0x20, %ax
+	movw	%ax, -2(%bp)
 	find:
 		addw	$0x20, -2(%bp)
 		movw	-2(%bp), %bx
@@ -344,7 +346,7 @@ address_to_sector:
 #			(-2 because entry 0 and 1 in FAT table are reserved and not used. ) 
 #       PARAMETERS:
 #               1. Parameter 1 - File start cluster
-#		2. Parameter 2 - File size	# Not needed 
+#		2. Parameter 2 - File size
 #		3. Parameter 3 - Mem. address where to save file data 
 #       REGISTERS:
 #               NaN, Used only for functions
