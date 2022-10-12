@@ -73,6 +73,7 @@ main:
 	call	reset_disk         # Reset disk
 
 	fat_init:
+		pushw	$0x80
 		call	load_fat
 	load_second:
 		pushw	$second_stage_name
