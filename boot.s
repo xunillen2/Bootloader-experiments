@@ -56,7 +56,7 @@ boot_vars:
 main:
 	setup_segments:
 		cli			# Disable interupts
-		movw	$0x600, %sp	# We will setup memory in second stage bootlaoder
+		movw	$0x9d00, %sp	# We will setup memory in second stage bootlaoder
 					# This is temporary, we do not need much.
 #		movw	$0x50, %ax
 #		movw	%ax, %ss

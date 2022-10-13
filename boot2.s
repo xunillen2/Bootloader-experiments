@@ -1,15 +1,24 @@
 .code16
-
+	
 .globl _start
 .section .text
 
 _start:
+	### SEGMENTS AND POINTERS ###
+	stack_setup:
+		movw 	$0x7bff, %ax
+		movw 	%ax, %sp
+
+	### STARTUP MESSAGES ###
 	startup_messages:
 		call	clear_screen
 		pushw	$copyright
 		call	print_text
 		pushw	$welcome_text
 		call	print_text
+	### FAT INIT ##
+		pushw	$0x7c0
+		call	load_fat
 
 	### A20 ###
 	call	a20_status
@@ -510,7 +519,7 @@ error_reboot:
 welcome_text:
         .ascii  "Welcome to LinksBoot!\n\rBooting...\n\0"
 copyright:
-       .ascii  "CopyRight Xunillen. GPL license.\n\r\0"
+	.ascii  "CopyRight Xunillen. GPL license.\n\r\0"
 a20_line_enabled:
 	.ascii	"\n\rA20 Line ENABLED\0"
 a20_line_disabled:
