@@ -17,7 +17,7 @@ _start:
 		pushw	$welcome_text
 		call	print_text
 	### FAT INIT ##
-		pushw	$0x7c0
+		pushw	$0x7cf
 		call	load_fat
 
 	### A20 ###
@@ -46,8 +46,18 @@ _start:
 			call	error_reboot
 
 next:
-        fat_list:
-#                call    list_files
+#	FAT Driver works this was only to see if driver would work with
+#	driver parameters and if it can load diffrent file in second stage
+#	bootloader
+#	load_sample_kernel:
+#		pushw	$sample_kernel_name
+#		call	find_file
+#		pushw	$0x7c0
+#		pushw	$0xffff
+#		pushw	%ax
+#		call	read_file_linear
+#		movw	$0, %dx
+#		jmp	0x7c00
 	load_gdt:
 		call	setup_gdt_table
 		lgdt	gdt
@@ -336,7 +346,7 @@ setup_gdt_table:
 	xor	%ax, %ax
 #	xor	%di, %di
 	movw	%ax, %es
-	movw	$0x700, %di
+	movw	$0x7c00, %di
 	null_descriptor:
 		movw	$0x4, %cx
 		rep	stosw
@@ -367,7 +377,7 @@ gdt:
 ###############
 idt:
 	.word	2048
-	.long	0x718	# (700, 708, 710, 718)
+	.long	0x7cc0	# (700, 708, 710, 718)
 
 ####################
 ## PROTECTED MODE ##
@@ -538,3 +548,5 @@ error_text:
        	.ascii  "\n\rBoot error... Press any key to reboot.\0"
 files:
 	.ascii	"\n\rFiles:\0"
+sample_kernel_name:
+	.ascii	"KERNEL01IMG"
