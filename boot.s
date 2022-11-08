@@ -73,16 +73,16 @@ main:
 	call	reset_disk         # Reset disk
 
 	fat_init:
-		pushw	$0x9d1
+		pushw	$0x7e00
 		call	load_fat
 	load_second:
 		pushw	$second_stage_name
 		call    find_file
-		pushw	$0x50
+		pushw	$0x200
 		pushw	%cx
 		pushw	%ax
 		call	read_file_linear
-		jmp	0x500				
+		jmp	0x2000
 	end:
 		jmp end
 

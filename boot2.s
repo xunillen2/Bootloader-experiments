@@ -6,7 +6,7 @@
 _start:
 	### SEGMENTS AND POINTERS ###
 	stack_setup:
-		movw 	$0x7bff, %ax
+		movw 	$0x9400, %ax
 		movw 	%ax, %sp
 
 	### STARTUP MESSAGES ###
@@ -63,6 +63,19 @@ next:
 		lgdt	gdt
 		pushw	$gdt_ok
 		call	print_text
+
+	enter_input_mode:
+	input:
+		# Echo
+		# input
+		movb	$0x0, %ah
+		int	$0x16
+		# output
+		movb	$0xe, %ah
+		movb	$0x0, %bh
+		movb    $0x07,  %bl
+		int	$0x10
+		jmp input
 	load_idt:
 		pushw	$idt_loading
                 call    print_text
@@ -104,12 +117,12 @@ a20_status:
 	xor	%ax, %ax
 	movw	%ax, %ds
 
-	movw	$0x600, %si
+	movw	$0xfe00, %si
 	movw	$0xF0, %ds:(%si)
 
 	not	%ax
 	movw	%ax, %es
-	movw	$0x610, %di
+	movw	$0xfe00, %di
 	movw	$0x00, %es:(%di)
 
         movw    $1, %ax
