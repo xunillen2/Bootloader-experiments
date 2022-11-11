@@ -5,7 +5,7 @@ as -o fat12.o fat12.s
 
 echo "Compiling first stage bootloader..."
 as -o boot_firststage.o boot.s
-ld.bfd --oformat binary -o boot_firststage.img -T linker.ld boot_firststage.o fat12.o
+ld --oformat binary -o boot_firststage.img -T linker.ld boot_firststage.o fat12.o
 
 if [ -e boot_firststage.img ]
 then
@@ -20,7 +20,7 @@ objdump -D -b binary -m i8086 boot_firststage.img
 
 echo "Compiling second stage bootloader..."
 as -o boot_secondstage.o boot2.s
-ld.bfd --oformat binary -o LINKSCND.BTT -T linker-2nd.ld boot_secondstage.o fat12.o
+ld --oformat binary -o LINKSCND.BTT -T linker-2nd.ld boot_secondstage.o fat12.o
 
 if [ -e LINKSCND.BTT ]
 then
@@ -45,13 +45,22 @@ echo "####################"
 hexdump -C boot_fin.img
 
 sleep 0.1
-if [[ $1 = "d" ]]; then
+if [ $1 = "d" ]; then
 	echo "Starting qemu"
 	echo -e "\nNOTE: Qemu started in Debug mode, vm execution is paused.\n"
 	qemu-system-i386 -m 32M -fda boot_fin.img -bios bios.bin -s -S
-elif [[ $1 = "w" ]]; then
+elif [ $1 = "w" ]; then
 	echo -e "\nWriting image to USB (/dev/sda - unsafe. do not use)"
-	sudo dd if=boot_fin.img of=/dev/sda
+	sudo dd if=/dev/zero of=/dev/sda bs=1M count=10
+	sudo dd if=boot_firststage.img of=/dev/sda
+	sleep 1
+	mount /dev/sda /mnt/
+	cp LINKSCND.BTT /mnt/
+	umount /mnt/
+	sleep 2
+	dd if=/dev/sda of=boot_fin.img bs=1M count=3
+	sleep 0.5
+        qemu-system-i386 -m 32M -fda boot_fin.img -bios bios.bin
 else
 	echo "Starting qemu."
 	qemu-system-i386 -m 32M -fda boot_fin.img -bios bios.bin
