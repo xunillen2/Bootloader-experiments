@@ -17,8 +17,8 @@ _start:
 		pushw	$welcome_text
 		call	print_text
 	### FAT INIT ##
-		pushw	$0x7cf
-		call	load_fat
+#		pushw	$0x7cf
+#		call	load_fat
 
 	### A20 ###
 	call	a20_status
@@ -117,12 +117,12 @@ a20_status:
 	xor	%ax, %ax
 	movw	%ax, %ds
 
-	movw	$0xfe00, %si
+	movw	$0x600, %si
 	movw	$0xF0, %ds:(%si)
 
 	not	%ax
 	movw	%ax, %es
-	movw	$0xfe00, %di
+	movw	$0x610, %di
 	movw	$0x00, %es:(%di)
 
         movw    $1, %ax
