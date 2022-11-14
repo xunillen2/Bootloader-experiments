@@ -64,11 +64,8 @@ next:
 		pushw	$gdt_ok
 		call	print_text
 
-	enter_input_mode:
-	input:
-		call read_char
-		call write_char
-		jmp input
+	enter_cmnd_mode:
+		call	enter_input_mode
 	load_idt:
 		pushw	$idt_loading
                 call    print_text
@@ -429,7 +426,6 @@ read_char:
 	movb	$0x0, %ah
 	int	$0x16
 	ret
-
 # ABOUT:
 #       Writes char given by parameter to screen 
 #       INT $0x16
@@ -448,7 +444,57 @@ write_char:
 	movb    $0x07,  %bl
 	int	$0x10
 	ret
-	
+# ABOUT:
+#       Enters input mode. Programs waits for char input, echoes that input to screen,
+#	Stores char to buffer and sends that buffer to command parse.
+#       INT $0x16
+#       PARAMETERS:
+#		NaN
+#       REGISTERS:
+#		NaN
+#       RETURNS:
+#		NaN
+#       NOTES:
+enter_input_mode:
+	jmp	go_new_line
+	continue_input:
+	mov	$cmnd_buffer, %di
+	check_input:
+		call	read_char
+		call	write_char
+		cmpb	$0xd, %al
+		je	end_check_input
+		cmpb	$0x8, %al
+		je	bs_handler
+		store_buffer:
+			movb	%al, (%di)
+			incw	%di
+			jmp	check_input
+		bs_handler:
+			movb	$0x20, %al
+			call	write_char
+			movb	$0x8, %al
+			call	write_char
+			decw	%di
+			movw	$0, (%di)
+			jmp	check_input
+		end_check_input:
+			# Write null to buffer
+			movw	$0, (%di)
+			
+			# Write commmand info (debug)
+			pushw	$command_not_found
+			call	print_text
+			pushw	$cmnd_buffer
+			call	print_text
+			
+			# Go to new line and write >
+			go_new_line:
+				pushw	$command_line
+				call	print_text
+			jmp	continue_input
+	ret
+					
 # ABOUT:
 #       Prints text from given address until null char is hit.
 #       INT $0x10
@@ -593,3 +639,8 @@ files:
 	.ascii	"\n\rFiles:\0"
 sample_kernel_name:
 	.ascii	"KERNEL01IMG"
+command_not_found:
+	.ascii	"\nCommand not found: \0"
+command_line:
+	.ascii	"\n\n\r|> "
+.lcomm cmnd_buffer, 256
