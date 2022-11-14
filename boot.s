@@ -78,7 +78,7 @@ main:
 	load_second:
 		pushw	$second_stage_name
 		call    find_file
-		pushw	$0x200
+		pushw	$0x100
 		pushw	%cx
 		pushw	%ax
 		call	read_file_linear

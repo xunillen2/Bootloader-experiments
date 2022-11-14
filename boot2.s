@@ -539,6 +539,8 @@ error_reboot:
         jmp     $0xffff, $0000  # Jumps to reset vector, and reboots pc
                                 # FFFF * 16 + 0 = FFFF0 ->
                                 #       1048560 - 16 bytes below 1mb
+                                
+.section .data
 welcome_text:
         .ascii  "Welcome to LinksBoot!\n\rBooting...\n\0"
 copyright:
