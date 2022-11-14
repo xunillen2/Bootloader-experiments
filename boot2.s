@@ -1,15 +1,24 @@
 .code16
-
+	
 .globl _start
 .section .text
 
 _start:
+	### SEGMENTS AND POINTERS ###
+	stack_setup:
+		movw 	$0x9400, %ax
+		movw 	%ax, %sp
+
+	### STARTUP MESSAGES ###
 	startup_messages:
 		call	clear_screen
 		pushw	$copyright
 		call	print_text
 		pushw	$welcome_text
 		call	print_text
+	### FAT INIT ##
+#		pushw	$0x7cf
+#		call	load_fat
 
 	### A20 ###
 	call	a20_status
@@ -37,13 +46,36 @@ _start:
 			call	error_reboot
 
 next:
-        fat_list:
-#                call    list_files
+#	FAT Driver works this was only to see if driver would work with
+#	driver parameters and if it can load diffrent file in second stage
+#	bootloader
+#	load_sample_kernel:
+#		pushw	$sample_kernel_name
+#		call	find_file
+#		pushw	$0x7c0
+#		pushw	$0xffff
+#		pushw	%ax
+#		call	read_file_linear
+#		movw	$0, %dx
+#		jmp	0x7c00
 	load_gdt:
 		call	setup_gdt_table
 		lgdt	gdt
 		pushw	$gdt_ok
 		call	print_text
+
+	enter_input_mode:
+	input:
+		# Echo
+		# input
+		movb	$0x0, %ah
+		int	$0x16
+		# output
+		movb	$0xe, %ah
+		movb	$0x0, %bh
+		movb    $0x07,  %bl
+		int	$0x10
+		jmp input
 	load_idt:
 		pushw	$idt_loading
                 call    print_text
@@ -327,7 +359,7 @@ setup_gdt_table:
 	xor	%ax, %ax
 #	xor	%di, %di
 	movw	%ax, %es
-	movw	$0x700, %di
+	movw	$0x7c00, %di
 	null_descriptor:
 		movw	$0x4, %cx
 		rep	stosw
@@ -358,7 +390,7 @@ gdt:
 ###############
 idt:
 	.word	2048
-	.long	0x718	# (700, 708, 710, 718)
+	.long	0x7cc0	# (700, 708, 710, 718)
 
 ####################
 ## PROTECTED MODE ##
@@ -507,10 +539,12 @@ error_reboot:
         jmp     $0xffff, $0000  # Jumps to reset vector, and reboots pc
                                 # FFFF * 16 + 0 = FFFF0 ->
                                 #       1048560 - 16 bytes below 1mb
+                                
+.section .data
 welcome_text:
         .ascii  "Welcome to LinksBoot!\n\rBooting...\n\0"
 copyright:
-       .ascii  "CopyRight Xunillen. GPL license.\n\r\0"
+	.ascii  "CopyRight Xunillen. GPL license.\n\r\0"
 a20_line_enabled:
 	.ascii	"\n\rA20 Line ENABLED\0"
 a20_line_disabled:
@@ -529,3 +563,5 @@ error_text:
        	.ascii  "\n\rBoot error... Press any key to reboot.\0"
 files:
 	.ascii	"\n\rFiles:\0"
+sample_kernel_name:
+	.ascii	"KERNEL01IMG"

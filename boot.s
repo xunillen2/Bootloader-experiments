@@ -56,7 +56,7 @@ boot_vars:
 main:
 	setup_segments:
 		cli			# Disable interupts
-		movw	$0x600, %sp	# We will setup memory in second stage bootlaoder
+		movw	$0xff00, %sp	# We will setup memory in second stage bootlaoder
 					# This is temporary, we do not need much.
 #		movw	$0x50, %ax
 #		movw	%ax, %ss
@@ -73,16 +73,16 @@ main:
 	call	reset_disk         # Reset disk
 
 	fat_init:
-		pushw	$0x80
+		pushw	$0x7e0
 		call	load_fat
 	load_second:
 		pushw	$second_stage_name
 		call    find_file
-		pushw	$0x7e0
+		pushw	$0x100
 		pushw	%cx
 		pushw	%ax
 		call	read_file_linear
-		jmp	0x7e00				
+		jmp	0x2000
 	end:
 		jmp end
 
