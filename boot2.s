@@ -66,15 +66,8 @@ next:
 
 	enter_input_mode:
 	input:
-		# Echo
-		# input
-		movb	$0x0, %ah
-		int	$0x16
-		# output
-		movb	$0xe, %ah
-		movb	$0x0, %bh
-		movb    $0x07,  %bl
-		int	$0x10
+		call read_char
+		call write_char
 		jmp input
 	load_idt:
 		pushw	$idt_loading
@@ -421,6 +414,41 @@ enter_protected:
 #       Interrupt handler that BIOS sets up. They provide video services ->
 #       Video mode (0h), cursor position (02h), get cursor position (02h)...
 #
+# ABOUT:
+#       Reads char from keyboard buffer
+#       INT $0x16
+#       PARAMETERS:
+#		NaN
+#       REGISTERS:
+#               %ah - Scan code of pressed down key
+#               %al - ASCII char of pressed down key
+#       RETURNS:
+#               %al - ASCII char
+#       NOTES:
+read_char:
+	movb	$0x0, %ah
+	int	$0x16
+	ret
+
+# ABOUT:
+#       Writes char given by parameter to screen 
+#       INT $0x16
+#       PARAMETERS:
+#		%al = char
+#       REGISTERS:
+#               %al - Char
+#               %bh - Page number
+#		%bl - Color
+#       RETURNS:
+#               %al - ASCII char
+#       NOTES:
+write_char:
+	movb	$0xe, %ah
+	movb	$0x0, %bh
+	movb    $0x07,  %bl
+	int	$0x10
+	ret
+	
 # ABOUT:
 #       Prints text from given address until null char is hit.
 #       INT $0x10
