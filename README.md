@@ -1,4 +1,11 @@
-# Links Boot
+```
+O      OOOOO O   O O   OO   OOOOOO  OOOOO    OOOOOO   OOOOOO  OOOOO
+O        O   OO  O O  OO   OO    OO O   OO  O      O O      O   O
+O        O   O O O OOOO     OOOO    OOOOO   O      O O      O   O
+O        O   O  OO O  OO        OO  O   OO  O      O O      O   O
+O        O   O   O O   OO  OO    OO O    O  O      O O      O   O
+OOOOOO OOOOO O   O O    OO  OOOOOO  OOOOOO   OOOOOO   OOOOOO    O
+```
 Simple and fast bootloader
 
 ## How to compile
