@@ -60,7 +60,7 @@ elif [ $1 = "w" ]; then
 	sleep 2
 	dd if=/dev/sda of=boot_fin.img bs=1M count=3
 	sleep 0.5
-        qemu-system-i386 -m 32M -fda boot_fin.img -bios bios.bin -s -S
+        qemu-system-i386 -m 32M -fda boot_fin.img -bios bios.bin
 else
 	echo "Starting qemu."
 	qemu-system-i386 -m 32M -fda boot_fin.img -bios bios.bin

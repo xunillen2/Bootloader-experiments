@@ -63,6 +63,10 @@ next:
 		lgdt	gdt
 		pushw	$gdt_ok
 		call	print_text
+		
+	print_logo:
+		pushw	$big_logo
+		call	print_text
 
 	enter_cmnd_mode:
 		call	enter_input_mode
@@ -461,7 +465,6 @@ enter_input_mode:
 	mov	$cmnd_buffer, %di
 	check_input:
 		call	read_char
-		call	write_char
 		cmpb	$0xd, %al
 		je	end_check_input
 		cmpb	$0x8, %al
@@ -469,8 +472,12 @@ enter_input_mode:
 		store_buffer:
 			movb	%al, (%di)
 			incw	%di
+			call	write_char
 			jmp	check_input
 		bs_handler:
+			cmpw	$cmnd_buffer, %di
+			je	check_input
+			call	write_char
 			movb	$0x20, %al
 			call	write_char
 			movb	$0x8, %al
@@ -494,7 +501,32 @@ enter_input_mode:
 				call	print_text
 			jmp	continue_input
 	ret
-					
+
+# ABOUT:
+#       Prints text from given address until null char is hit.
+#       INT $0x10
+#       PARAMETERS:
+#               1. Parameter 1 - Address to data to print       <-- 4(%bp)
+#       REGISTERS:
+#               %ah - 0x0e - function code
+#               %al - Caracter to output
+#               %bh - Page number
+#               %bl - Color
+#               %ax - Printed characters
+#       RETURNS:
+#               Number of writen bytes in %ax
+#       NOTES:
+check_command:
+
+	loop_chars:
+	jz	done
+	movb	(%di), %al
+	cmpb	%al, (%bx)
+	incw	%di
+	incw	%bx
+	decw	%cx
+	jmp	loop_chars
+				
 # ABOUT:
 #       Prints text from given address until null char is hit.
 #       INT $0x10
@@ -615,10 +647,19 @@ error_reboot:
                                 #       1048560 - 16 bytes below 1mb
                                 
 .section .data
+big_logo:
+	.ascii "\n\n\rO      OOOOO O   O O   OO   OOOOOO  OOOOO    OOOOOO   OOOOOO  OOOOO
+\rO        O   OO  O O  OO   OO    OO O   OO  O      O O      O   O
+\rO        O   O O O OOOO     OOOO    OOOOO   O      O O      O   O
+\rO        O   O  OO O  OO        OO  O   OO  O      O O      O   O
+\rO        O   O   O O   OO  OO    OO O    O  O      O O      O   O
+\rOOOOOO OOOOO O   O O    OO  OOOOOO  OOOOOO   OOOOOO   OOOOOO    O
+\r--------------------------------------------------------------------------\n\n\n\n\n\0"
+ 
 welcome_text:
         .ascii  "Welcome to LinksBoot!\n\rBooting...\n\0"
 copyright:
-	.ascii  "CopyRight Xunillen. GPL license.\n\r\0"
+	.ascii  "CopyRight Xunillen 2022. GPL license.\n\r\0"
 a20_line_enabled:
 	.ascii	"\n\rA20 Line ENABLED\0"
 a20_line_disabled:
@@ -640,7 +681,7 @@ files:
 sample_kernel_name:
 	.ascii	"KERNEL01IMG"
 command_not_found:
-	.ascii	"\nCommand not found: \0"
+	.ascii	"\n\rCommand not found: \0"
 command_line:
 	.ascii	"\n\n\r|> "
 .lcomm cmnd_buffer, 256
