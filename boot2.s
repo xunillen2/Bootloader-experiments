@@ -67,6 +67,8 @@ next:
 	print_logo:
 		pushw	$big_logo
 		call	print_text
+		pushw	$info_text
+		call	print_text
 
 	enter_cmnd_mode:
 		call	enter_input_mode
@@ -443,10 +445,12 @@ read_char:
 #               %al - ASCII char
 #       NOTES:
 write_char:
+	pushw	%bx
 	movb	$0xe, %ah
 	movb	$0x0, %bh
 	movb    $0x07,  %bl
 	int	$0x10
+	popw	%bx
 	ret
 # ABOUT:
 #       Enters input mode. Programs waits for char input, echoes that input to screen,
@@ -490,11 +494,28 @@ enter_input_mode:
 			movw	$0, (%di)
 			
 			# Write commmand info (debug)
+			pushw	$cmnd_buffer
+			pushw	$command_reboot
+			call	cmprstr
+			cmpb	$1, %ah
+			movb	%ah, %al
+			je	error_reboot
+		
+			pushw	$cmnd_buffer
+			pushw	$command_help
+			call	cmprstr
+			cmpb	$1, %ah
+			je	print_help
+
+			# debug
 			pushw	$command_not_found
 			call	print_text
 			pushw	$cmnd_buffer
 			call	print_text
-			
+			jmp	go_new_line
+			print_help:
+				pushw	$help_text
+				call	print_text
 			# Go to new line and write >
 			go_new_line:
 				pushw	$command_line
@@ -506,26 +527,41 @@ enter_input_mode:
 #       Prints text from given address until null char is hit.
 #       INT $0x10
 #       PARAMETERS:
-#               1. Parameter 1 - Address to data to print       <-- 4(%bp)
+#               1. Parameter 1 - Addres to start of the text to check
+#		2. Parameter 2 - Address to text to which to compare 1. parameter
 #       REGISTERS:
-#               %ah - 0x0e - function code
-#               %al - Caracter to output
-#               %bh - Page number
-#               %bl - Color
-#               %ax - Printed characters
+#		NaN
 #       RETURNS:
-#               Number of writen bytes in %ax
 #       NOTES:
-check_command:
-
+cmprstr:
+	pushw	%bp
+	movw	%sp, %bp 
+	pushw	%di
+	pushw	%bx
+	setup:
+		movw	4(%bp), %di
+		movw	6(%bp), %bx
 	loop_chars:
-	jz	done
-	movb	(%di), %al
-	cmpb	%al, (%bx)
-	incw	%di
-	incw	%bx
-	decw	%cx
-	jmp	loop_chars
+		movb	(%di), %al
+		cmpb	%al, (%bx)
+#		call 	write_char
+		jne	not_eq
+		incw	%di
+		incw	%bx
+		cmpb	$0, %al
+		je	char_end_eq
+		jmp	loop_chars
+	not_eq:
+		notb	%ah
+		jmp	char_end
+	char_end_eq:
+		movb	$1, %ah
+	char_end:
+		popw	%bx
+		popw	%di
+		movw	%bp, %sp
+		popw	%bp
+		ret
 				
 # ABOUT:
 #       Prints text from given address until null char is hit.
@@ -544,6 +580,8 @@ check_command:
 #
 print_text:
         pushw   %bp
+#        pushw	%di
+#        pushw	%bx
         movw    %sp, %bp
 
         movw    4(%bp), %di
@@ -569,6 +607,8 @@ print_text:
                 movw    4(%bp), %ax     # Get original address
                 subw    %ax, %di        # Sub final address from orig. address
                 movw    %di, %ax        # Move result to %ax for return value.
+#                popw	%bx
+#                popw	%di		# Restore registers
                 movw    %bp, %sp
                 popw    %bp
                 ret
@@ -660,6 +700,8 @@ welcome_text:
         .ascii  "Welcome to LinksBoot!\n\rBooting...\n\0"
 copyright:
 	.ascii  "CopyRight Xunillen 2022. GPL license.\n\r\0"
+info_text:
+	.ascii	"\n\rTo see all available commands, type 'help'.\0"
 a20_line_enabled:
 	.ascii	"\n\rA20 Line ENABLED\0"
 a20_line_disabled:
@@ -683,5 +725,14 @@ sample_kernel_name:
 command_not_found:
 	.ascii	"\n\rCommand not found: \0"
 command_line:
-	.ascii	"\n\n\r|> "
+	.ascii	"\n\n\r|> \0"
+command_reboot:
+	.ascii	"reboot\0"
+command_help:
+	.ascii	"help\0"
+help_text:
+	.ascii	"\rhelp - Lists all available commands with small description on what they do
+		 \rreboot - Reboots computer
+		 \rir - Lists all registers with their values
+		 \rboot - Boots specified file (kernel). Without parameter, LinksBoot boots default file name 'KERNEL01.IMG'\n\n\0"
 .lcomm cmnd_buffer, 256
