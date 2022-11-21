@@ -519,7 +519,7 @@ enter_input_mode:
 			# Go to new line and write >
 			go_new_line:
 				pushw	$command_line
-				call	print_text
+				call	print_text			# Memory leaks. Fix me
 			jmp	continue_input
 	ret
 
@@ -731,7 +731,7 @@ command_reboot:
 command_help:
 	.ascii	"help\0"
 help_text:
-	.ascii	"\rhelp - Lists all available commands with small description on what they do
+	.ascii	"\n\rhelp - Lists all available commands with small description on what they do
 		 \rreboot - Reboots computer
 		 \rir - Lists all registers with their values
 		 \rboot - Boots specified file (kernel). Without parameter, LinksBoot boots default file name 'KERNEL01.IMG'\n\n\0"
