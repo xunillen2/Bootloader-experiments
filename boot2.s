@@ -492,26 +492,22 @@ enter_input_mode:
 		end_check_input:
 			# Write null to buffer
 			movw	$0, (%di)
-			
+
 			# Write commmand info (debug)
+			# This is cmd parse is only for testing,
+			# Will rewrite later
 			pushw	$cmnd_buffer
 			pushw	$command_reboot
 			call	cmprstr
 			cmpb	$1, %ah
 			movb	%ah, %al
 			je	error_reboot
-		
+
 			pushw	$cmnd_buffer
 			pushw	$command_help
 			call	cmprstr
 			cmpb	$1, %ah
 			je	print_help
-			
-			pushw	$cmnd_buffer
-			pushw	$command_gay
-			call	cmprstr
-			cmpb	$1, %ah
-			je	print_gay
 
 			# debug
 			pushw	$command_not_found
@@ -519,10 +515,6 @@ enter_input_mode:
 			pushw	$cmnd_buffer
 			call	print_text
 			jmp	go_new_line
-			print_gay:
-				pushw	$gay_text
-				call	print_text
-				jmp go_new_line
 			print_help:
 				pushw	$help_text
 				call	print_text
@@ -751,10 +743,6 @@ command_reboot:
 	.ascii	"reboot\0"
 command_help:
 	.ascii	"help\0"
-command_gay:
-	.ascii	"gay\0"
-gay_text:
-	.ascii	"\n\rVedo je GAY\0"
 help_text:
 	.ascii	"\n\rhelp - Lists all available commands with small description on what they do
 		 \rreboot - Reboots computer
