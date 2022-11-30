@@ -1,5 +1,5 @@
 .code16
-	
+
 .globl _start
 .section .text
 
@@ -63,19 +63,15 @@ next:
 		lgdt	gdt
 		pushw	$gdt_ok
 		call	print_text
+		
+	print_logo:
+		pushw	$big_logo
+		call	print_text
+		pushw	$info_text
+		call	print_text
 
-	enter_input_mode:
-	input:
-		# Echo
-		# input
-		movb	$0x0, %ah
-		int	$0x16
-		# output
-		movb	$0xe, %ah
-		movb	$0x0, %bh
-		movb    $0x07,  %bl
-		int	$0x10
-		jmp input
+	enter_cmnd_mode:
+		call	enter_input_mode
 	load_idt:
 		pushw	$idt_loading
                 call    print_text
@@ -422,6 +418,172 @@ enter_protected:
 #       Video mode (0h), cursor position (02h), get cursor position (02h)...
 #
 # ABOUT:
+#       Reads char from keyboard buffer
+#       INT $0x16
+#       PARAMETERS:
+#		NaN
+#       REGISTERS:
+#               %ah - Scan code of pressed down key
+#               %al - ASCII char of pressed down key
+#       RETURNS:
+#               %al - ASCII char
+#       NOTES:
+read_char:
+	movb	$0x0, %ah
+	int	$0x16
+	ret
+# ABOUT:
+#       Writes char given by parameter to screen 
+#       INT $0x16
+#       PARAMETERS:
+#		%al = char
+#       REGISTERS:
+#               %al - Char
+#               %bh - Page number
+#		%bl - Color
+#       RETURNS:
+#               %al - ASCII char
+#       NOTES:
+write_char:
+	pushw	%bx
+	movb	$0xe, %ah
+	movb	$0x0, %bh
+	movb    $0x07,  %bl
+	int	$0x10
+	popw	%bx
+	ret
+# ABOUT:
+#       Enters input mode. Programs waits for char input, echoes that input to screen,
+#	Stores char to buffer and sends that buffer to command parse.
+#       INT $0x16
+#       PARAMETERS:
+#		NaN
+#       REGISTERS:
+#		NaN
+#       RETURNS:
+#		NaN
+#       NOTES:
+enter_input_mode:
+	jmp	go_new_line
+	continue_input:
+	mov	$cmnd_buffer, %di
+	check_input:
+		call	read_char
+		cmpb	$0xd, %al
+		je	end_check_input
+		cmpb	$0x8, %al
+		je	bs_handler
+		store_buffer:
+			movb	%al, (%di)
+			incw	%di
+			call	write_char
+			jmp	check_input
+		bs_handler:
+			cmpw	$cmnd_buffer, %di
+			je	check_input
+			call	write_char
+			movb	$0x20, %al
+			call	write_char
+			movb	$0x8, %al
+			call	write_char
+			decw	%di
+			movw	$0, (%di)
+			jmp	check_input
+		end_check_input:
+			# Write null to buffer
+			movw	$0, (%di)
+
+			# Write commmand info (debug)
+			# This is cmd parse is only for testing,
+			# Will rewrite later
+			pushw	$cmnd_buffer
+			pushw	$command_reboot
+			call	cmprstr
+			cmpb	$1, %ah
+			movb	%ah, %al
+			je	error_reboot
+
+			pushw	$cmnd_buffer
+			pushw	$command_help
+			call	cmprstr
+			cmpb	$1, %ah
+			je	print_help
+
+			pushw	$cmnd_buffer
+			pushw	$command_about
+			call	cmprstr
+			cmpb	$1, %ah
+			je	print_about
+
+			pushw	$cmnd_buffer
+			pushw	$command_boot
+			call	cmprstr
+			cmpb	$1, %ah
+			je	boot_seq
+
+			# debug
+			pushw	$command_not_found
+			call	print_text
+			pushw	$cmnd_buffer
+			call	print_text
+			jmp	go_new_line
+			boot_seq:
+				jmp	go_new_line
+			print_about:
+				pushw	$about_text
+				call	print_text
+				jmp	go_new_line
+			print_help:
+				pushw	$help_text
+				call	print_text
+			# Go to new line and write >
+			go_new_line:
+				pushw	$command_line
+				call	print_text			# Memory leaks. Fix me
+			jmp	continue_input
+	ret
+
+# ABOUT:
+#       Prints text from given address until null char is hit.
+#       INT $0x10
+#       PARAMETERS:
+#               1. Parameter 1 - Addres to start of the text to check
+#		2. Parameter 2 - Address to text to which to compare 1. parameter
+#       REGISTERS:
+#		NaN
+#       RETURNS:
+#       NOTES:
+cmprstr:
+	pushw	%bp
+	movw	%sp, %bp
+	pushw	%di
+	pushw	%bx
+	setup:
+		movw	4(%bp), %di
+		movw	6(%bp), %bx
+	loop_chars:
+		movb	(%di), %al
+		cmpb	%al, (%bx)
+#		call 	write_char
+		jne	not_eq
+		incw	%di
+		incw	%bx
+		cmpb	$0, %al
+		je	char_end_eq
+		jmp	loop_chars
+	not_eq:
+		notb	%ah
+		jmp	char_end
+	char_end_eq:
+		movb	$1, %ah
+	char_end:
+		popw	%bx
+		popw	%di
+		movw	%bp, %sp
+		popw	%bp
+		ret
+
+# ABOUT:
 #       Prints text from given address until null char is hit.
 #       INT $0x10
 #       PARAMETERS:
@@ -436,8 +598,11 @@ enter_protected:
 #               Number of writen bytes in %ax
 #       NOTES:
 #
-print_text:
+print_text:				# Clear parameter from stack on exit to mitigate memory
+					# leak
         pushw   %bp
+#        pushw	%di
+#        pushw	%bx
         movw    %sp, %bp
 
         movw    4(%bp), %di
@@ -463,9 +628,21 @@ print_text:
                 movw    4(%bp), %ax     # Get original address
                 subw    %ax, %di        # Sub final address from orig. address
                 movw    %di, %ax        # Move result to %ax for return value.
-                movw    %bp, %sp
+#                popw	%bx
+#                popw	%di		# Restore registers
+
+		# Return from the function and perm parameter cleanup.
+		# (%bp) -> bp
+		# 2(%bp) -> ret
+		# 4(%bp) -> par 1.
+		# 6(%bp) -> par 2.
+		# 8(%bp) <------ thi
+		movw	2(%bp), %bx	# Move return address to temp. reg.
+                movw    %bp, %sp	# Restore stack
                 popw    %bp
-                ret
+		addw	$8, %sp		# Clear parameters
+		pushw	%bx		# Emulate return addr. by pushin addr. to stack
+                ret			# Return
 # ABOUT:
 #       Clears screen
 #       INT $0x10
@@ -541,10 +718,21 @@ error_reboot:
                                 #       1048560 - 16 bytes below 1mb
                                 
 .section .data
+big_logo:
+	.ascii "\n\n\rO      OOOOO O   O O   OO   OOOOOO  OOOOO    OOOOOO   OOOOOO  OOOOO
+\rO        O   OO  O O  OO   OO    OO O   OO  O      O O      O   O
+\rO        O   O O O OOOO     OOOO    OOOOO   O      O O      O   O
+\rO        O   O  OO O  OO        OO  O   OO  O      O O      O   O
+\rO        O   O   O O   OO  OO    OO O    O  O      O O      O   O
+\rOOOOOO OOOOO O   O O    OO  OOOOOO  OOOOOO   OOOOOO   OOOOOO    O
+\r--------------------------------------------------------------------------\n\n\n\n\n\0"
+ 
 welcome_text:
         .ascii  "Welcome to LinksBoot!\n\rBooting...\n\0"
 copyright:
-	.ascii  "CopyRight Xunillen. GPL license.\n\r\0"
+	.ascii  "CopyRight Xunillen 2022. GPL license.\n\r\0"
+info_text:
+	.ascii	"\n\rTo see all available commands, type 'help'.\0"
 a20_line_enabled:
 	.ascii	"\n\rA20 Line ENABLED\0"
 a20_line_disabled:
@@ -565,3 +753,24 @@ files:
 	.ascii	"\n\rFiles:\0"
 sample_kernel_name:
 	.ascii	"KERNEL01IMG"
+command_not_found:
+	.ascii	"\n\rCommand not found: \0"
+command_line:
+	.ascii	"\n\n\r|> \0"
+command_reboot:
+	.ascii	"reboot\0"
+command_help:
+	.ascii	"help\0"
+command_boot:
+	.ascii	"boot\0"
+command_about:
+	.ascii	"about\0"
+about_text:
+	.ascii	"\n\rLinksBoot is simple and fast bootloader with snapshot feature.\n\rCopyRight Xunillen 2022\0"
+help_text:
+	.ascii	"\n\rhelp - Lists all available commands with small description on what they do
+		 \rabout - About this bootloader
+		 \rreboot - Reboots computer
+		 \rir - Lists all registers with their values
+		 \rboot - Boots specified file (kernel). Without parameter, LinksBoot boots default file 'KERNEL01.IMG'\n\n\0"
+.lcomm cmnd_buffer, 256
