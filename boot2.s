@@ -1,5 +1,5 @@
 .code16
-	
+
 .globl _start
 .section .text
 
@@ -510,6 +510,12 @@ enter_input_mode:
 			je	print_help
 
 			pushw	$cmnd_buffer
+			pushw	$command_about
+			call	cmprstr
+			cmpb	$1, %ah
+			je	print_about
+
+			pushw	$cmnd_buffer
 			pushw	$command_boot
 			call	cmprstr
 			cmpb	$1, %ah
@@ -522,6 +528,10 @@ enter_input_mode:
 			call	print_text
 			jmp	go_new_line
 			boot_seq:
+				jmp	go_new_line
+			print_about:
+				pushw	$about_text
+				call	print_text
 				jmp	go_new_line
 			print_help:
 				pushw	$help_text
@@ -545,7 +555,7 @@ enter_input_mode:
 #       NOTES:
 cmprstr:
 	pushw	%bp
-	movw	%sp, %bp 
+	movw	%sp, %bp
 	pushw	%di
 	pushw	%bx
 	setup:
@@ -753,8 +763,13 @@ command_help:
 	.ascii	"help\0"
 command_boot:
 	.ascii	"boot\0"
+command_about:
+	.ascii	"about\0"
+about_text:
+	.ascii	"\n\rLinksBoot is simple and fast bootloader with snapshot feature.\n\rCopyRight Xunillen 2022\0"
 help_text:
 	.ascii	"\n\rhelp - Lists all available commands with small description on what they do
+		 \rabout - About this bootloader
 		 \rreboot - Reboots computer
 		 \rir - Lists all registers with their values
 		 \rboot - Boots specified file (kernel). Without parameter, LinksBoot boots default file 'KERNEL01.IMG'\n\n\0"
