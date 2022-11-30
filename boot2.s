@@ -506,6 +506,12 @@ enter_input_mode:
 			call	cmprstr
 			cmpb	$1, %ah
 			je	print_help
+			
+			pushw	$cmnd_buffer
+			pushw	$command_gay
+			call	cmprstr
+			cmpb	$1, %ah
+			je	print_gay
 
 			# debug
 			pushw	$command_not_found
@@ -513,6 +519,10 @@ enter_input_mode:
 			pushw	$cmnd_buffer
 			call	print_text
 			jmp	go_new_line
+			print_gay:
+				pushw	$gay_text
+				call	print_text
+				jmp go_new_line
 			print_help:
 				pushw	$help_text
 				call	print_text
@@ -562,7 +572,7 @@ cmprstr:
 		movw	%bp, %sp
 		popw	%bp
 		ret
-				
+
 # ABOUT:
 #       Prints text from given address until null char is hit.
 #       INT $0x10
@@ -578,7 +588,8 @@ cmprstr:
 #               Number of writen bytes in %ax
 #       NOTES:
 #
-print_text:
+print_text:				# Clear parameter from stack on exit to mitigate memory
+					# leak
         pushw   %bp
 #        pushw	%di
 #        pushw	%bx
@@ -609,9 +620,19 @@ print_text:
                 movw    %di, %ax        # Move result to %ax for return value.
 #                popw	%bx
 #                popw	%di		# Restore registers
-                movw    %bp, %sp
+
+		# Return from the function and perm parameter cleanup.
+		# (%bp) -> bp
+		# 2(%bp) -> ret
+		# 4(%bp) -> par 1.
+		# 6(%bp) -> par 2.
+		# 8(%bp) <------ thi
+		movw	2(%bp), %bx	# Move return address to temp. reg.
+                movw    %bp, %sp	# Restore stack
                 popw    %bp
-                ret
+		addw	$8, %sp		# Clear parameters
+		pushw	%bx		# Emulate return addr. by pushin addr. to stack
+                ret			# Return
 # ABOUT:
 #       Clears screen
 #       INT $0x10
@@ -730,6 +751,10 @@ command_reboot:
 	.ascii	"reboot\0"
 command_help:
 	.ascii	"help\0"
+command_gay:
+	.ascii	"gay\0"
+gay_text:
+	.ascii	"\n\rVedo je GAY\0"
 help_text:
 	.ascii	"\n\rhelp - Lists all available commands with small description on what they do
 		 \rreboot - Reboots computer
