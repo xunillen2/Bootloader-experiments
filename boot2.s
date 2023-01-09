@@ -35,11 +35,11 @@ _start:
 		call	activate_a20	# Try, and enable A20 line
 		call	a20_status	# Get A20 status
 		cmpw	$1, %ax
-		jne	a20_failed
+		jne		a20_failed
 		a20_success:
 			pushw	$a20_line_enabled	# Print status text and continue
 			call	print_text
-			jmp	next
+			jmp		next
 		a20_failed:
 			pushw	$a20_line_failed	# If A20 line activation fails, print
 			call	print_text		# message and reboot.
@@ -74,14 +74,14 @@ next:
 		call	enter_input_mode
 	load_idt:
 		pushw	$idt_loading
-                call    print_text
+		call    print_text
 		lidt	idt
 #		call	print_text	# Ok. This does not work beacuse we already loaded new idt.
 
 	protected:
 		call	enter_protected
 loop:
-	jmp loop
+	jmp		loop
 
 ##############
 ## A20 LINE ##
@@ -107,30 +107,30 @@ loop:
 #       NOTES:
 #
 a20_status:
-        pushw   %bp
-        movw    %sp, %bp
+	pushw   %bp
+	movw    %sp, %bp
 
-	xor	%ax, %ax
+	xor		%ax, %ax
 	movw	%ax, %ds
 
 	movw	$0x600, %si
 	movw	$0xF0, %ds:(%si)
 
-	not	%ax
+	not		%ax
 	movw	%ax, %es
 	movw	$0x610, %di
 	movw	$0x00, %es:(%di)
 
-        movw    $1, %ax
+	movw    $1, %ax
 	movw	%ds:(%si), %cx
 	cmpw	$0xF0, %cx
-	je	end_a20_status
-        xor     %ax, %ax
+	je		end_a20_status
+	xor     %ax, %ax
 
 	end_a20_status:
-                movw    %bp, %sp
-                popw    %bp
-		ret
+		movw    %bp, %sp
+		popw    %bp
+	ret
 # ABOUT:
 #	Activates A20 gate using multiple methods:
 #		1. Using BIOS function.
@@ -189,24 +189,24 @@ activate_a20:
 		# See if A20 line is supported
 		# (QUERY A20 GATE SUPPORT)
 		movw	$0x2403, %ax
-		int	$15
+		int		$15
 		cmpb	$0, %ah
-		jnz	keyboard_controller	# jmp. to second activation method
-		jc	keyboard_controller
+		jnz		keyboard_controller	# jmp. to second activation method
+		jc		keyboard_controller
 
 		movw	$0x2401, %ax		# Activate A20 gate
-		int	$15
+		int		$15
 		cmpb	$0, %ah
-		jnz	keyboard_controller
-		jc	keyboard_controller
+		jnz		keyboard_controller
+		jc		keyboard_controller
 
 		# Check to see if A20 line is enabled
 		call	a20_status
 		testw	$0x01, %ax
-		jnz	activate_end
+		jnz		activate_end
 		# Otherwise go to keyboard controller method
 	keyboard_controller:
-		xor	%ax, %ax	# Empty %al
+		xor		%ax, %ax	# Empty %al
 
 		call	check_buff
 		movb	$0xd1, %al	# Write command byte 0xD1 to IO port 0x64. (see above)
@@ -217,23 +217,23 @@ activate_a20:
 		outb	%al, $0x60
 		call	check_buff
 
-                # Check to see if A20 line is enabled
-                call	a20_status
-                testw	$0x01, %ax
-                jnz	activate_end
-		jmp	fast_a20
+		# Check to see if A20 line is enabled
+		call	a20_status
+		testw	$0x01, %ax
+		jnz		activate_end
+		jmp		fast_a20
 		# Go to fast A20 method
 		check_buff:
-			inb	$0x64, %al
+			inb		$0x64, %al
 			testb	$2, %al		# Bitwise AND, Checks if bit 2 is set.
-						# If result is 0, ZF is set to 1, otherwise to 0.
-			jnz	check_buff
+								# If result is 0, ZF is set to 1, otherwise to 0.
+			jnz		check_buff
 			ret
 	fast_a20:
-		inb	$0x92, %al
+		inb		$0x92, %al
 		testb	$0x02, %al	# Read value from 0x92
-		jnz	fast_a20_end	# And see if bit 2 is set
-		orb	$0x02, %al	# If not, set bit 2, other bits, and write to 0x92.
+		jnz		fast_a20_end	# And see if bit 2 is set
+		orb		$0x02, %al	# If not, set bit 2, other bits, and write to 0x92.
 		andb	$0xfe, %al
 		outb	%al, $0x92
 		fast_a20_end:
@@ -262,14 +262,14 @@ disable_a20:
 	movw    $0x2403, %ax
 	int     $15
 	cmpb    $0, %ah
-        jnz     error_unsupported
-	jc	error_unsupported
+	jnz     error_unsupported
+	jc		error_unsupported
 
-        movw    $0x2400, %ax
-        int	$15
-        jc      error_reboot
-        cmpb    $0x86, %ah
-        je      error_unsupported
+	movw    $0x2400, %ax
+	int		$15
+	jc      error_reboot
+	cmpb    $0x86, %ah
+	je      error_unsupported
 
 	popw	%ax
 	ret
@@ -352,13 +352,13 @@ setup_gdt_table:
 #		.byte	0xc
 #		.byte	0xf
 #		.byte	0x00
-	xor	%ax, %ax
-#	xor	%di, %di
+	xor		%ax, %ax
+#	xor		%di, %di
 	movw	%ax, %es
 	movw	$0x7c00, %di
 	null_descriptor:
 		movw	$0x4, %cx
-		rep	stosw
+		rep		stosw
 	code_descriptor:
 		movw	$0xffff, %es:(%di)
 		movw	$0x0000, %es:2(%di)
@@ -370,12 +370,12 @@ setup_gdt_table:
 	addw	$8, %di
 	data_descriptor:
 		movw    $0xffff, %es:(%di)
-                movw    $0x0000, %es:2(%di)
-                movb    $0x00,	 %es:4(%di)
-                movb    $0x92,	 %es:5(%di)
-                movb    $0xc,	 %es:6(%di)
-                movb    $0xf,	 %es:7(%di)
-                movb    $0x00,	 %es:8(%di)
+		movw    $0x0000, %es:2(%di)
+		movb    $0x00,	 %es:4(%di)
+		movb    $0x92,	 %es:5(%di)
+		movb    $0xc,	 %es:6(%di)
+		movb    $0xf,	 %es:7(%di)
+		movb    $0x00,	 %es:8(%di)
 	ret
 gdt:
 	.word	24	# 3*64 bit
@@ -401,13 +401,13 @@ idt:
 enter_protected:
 	cli
 	movl	%cr0, %eax
-	or	$1, %eax
+	or		$1, %eax
 	movl	%eax, %cr0
-	jmp clear_prefetch_queue
+	jmp		clear_prefetch_queue
     	nop
     	nop
-  clear_prefetch_queue:
-	ret
+	clear_prefetch_queue:
+		ret
 
 
 ######################
@@ -430,7 +430,7 @@ enter_protected:
 #       NOTES:
 read_char:
 	movb	$0x0, %ah
-	int	$0x16
+	int		$0x16
 	ret
 # ABOUT:
 #       Writes char given by parameter to screen 
@@ -464,23 +464,23 @@ write_char:
 #		NaN
 #       NOTES:
 enter_input_mode:
-	jmp	go_new_line
+	jmp		go_new_line
 	continue_input:
-	mov	$cmnd_buffer, %di
+		mov		$cmnd_buffer, %di
 	check_input:
 		call	read_char
 		cmpb	$0xd, %al
-		je	end_check_input
+		je		end_check_input
 		cmpb	$0x8, %al
-		je	bs_handler
+		je		bs_handler
 		store_buffer:
 			movb	%al, (%di)
 			incw	%di
 			call	write_char
-			jmp	check_input
+			jmp		check_input
 		bs_handler:
 			cmpw	$cmnd_buffer, %di
-			je	check_input
+			je		check_input
 			call	write_char
 			movb	$0x20, %al
 			call	write_char
@@ -488,7 +488,7 @@ enter_input_mode:
 			call	write_char
 			decw	%di
 			movw	$0, (%di)
-			jmp	check_input
+			jmp		check_input
 		end_check_input:
 			# Write null to buffer
 			movw	$0, (%di)
@@ -501,38 +501,38 @@ enter_input_mode:
 			call	cmprstr
 			cmpb	$1, %ah
 			movb	%ah, %al
-			je	error_reboot
+			je		error_reboot
 
 			pushw	$cmnd_buffer
 			pushw	$command_help
 			call	cmprstr
 			cmpb	$1, %ah
-			je	print_help
+			je		print_help
 
 			pushw	$cmnd_buffer
 			pushw	$command_about
 			call	cmprstr
 			cmpb	$1, %ah
-			je	print_about
+			je		print_about
 
 			pushw	$cmnd_buffer
 			pushw	$command_boot
 			call	cmprstr
 			cmpb	$1, %ah
-			je	boot_seq
+			je		boot_seq
 
 			# debug
 			pushw	$command_not_found
 			call	print_text
 			pushw	$cmnd_buffer
 			call	print_text
-			jmp	go_new_line
+			jmp		go_new_line
 			boot_seq:
-				jmp	go_new_line
+				jmp		go_new_line
 			print_about:
 				pushw	$about_text
 				call	print_text
-				jmp	go_new_line
+				jmp		go_new_line
 			print_help:
 				pushw	$help_text
 				call	print_text
@@ -540,7 +540,7 @@ enter_input_mode:
 			go_new_line:
 				pushw	$command_line
 				call	print_text			# Memory leaks. Fix me
-			jmp	continue_input
+			jmp		continue_input
 	ret
 
 # ABOUT:
@@ -565,15 +565,15 @@ cmprstr:
 		movb	(%di), %al
 		cmpb	%al, (%bx)
 #		call 	write_char
-		jne	not_eq
+		jne		not_eq
 		incw	%di
 		incw	%bx
 		cmpb	$0, %al
-		je	char_end_eq
-		jmp	loop_chars
+		je		char_end_eq
+		jmp		loop_chars
 	not_eq:
 		notb	%ah
-		jmp	char_end
+		jmp		char_end
 	char_end_eq:
 		movb	$1, %ah
 	char_end:
@@ -599,7 +599,7 @@ cmprstr:
 #       NOTES:
 #
 print_text:				# Clear parameter from stack on exit to mitigate memory
-					# leak
+						# leak
         pushw   %bp
 #        pushw	%di
 #        pushw	%bx
@@ -728,7 +728,7 @@ big_logo:
 \r--------------------------------------------------------------------------\n\n\n\n\n\0"
  
 welcome_text:
-        .ascii  "Welcome to LinksBoot!\n\rBooting...\n\0"
+	.ascii  "Welcome to LinksBoot!\n\rBooting...\n\0"
 copyright:
 	.ascii  "CopyRight Xunillen 2022. GPL license.\n\r\0"
 info_text:
@@ -746,9 +746,9 @@ gdt_ok:
 idt_loading:
 	.ascii "\n\rLoading IDT table...\0"
 error_uns_text:
-       	.ascii  "\n\rFunction not supported, or is invalid.\0"
+	.ascii  "\n\rFunction not supported, or is invalid.\0"
 error_text:
-       	.ascii  "\n\rBoot error... Press any key to reboot.\0"
+	.ascii  "\n\rBoot error... Press any key to reboot.\0"
 files:
 	.ascii	"\n\rFiles:\0"
 sample_kernel_name:
