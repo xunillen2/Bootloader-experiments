@@ -56,25 +56,25 @@
 #
 .code16
 temp_bpb:
-                bytes_per_logsec:       .word   0x200   # Sector size (in bytes)
-                reserved_logsec:        .word   0x1     # 0 - boot sector, need more info. temp 3
-                fat_cnt:                .byte   0x2     # Number of allocation tables - FAT12 Always have 2
-                root_dir_num:           .word   0xe0    # Maximum number of dirs. in root dir.
-                logsec_per_fat:         .word   0x9     # bit 0 - 0 single sided, 1 double sided
-                                                        # bit 1 (size) - 0 if 9 sectors per FAT, 1 if 8
-                                                        # bit 3 (removable status) - 0 fixed, 1 removable
-                                                        # bit 4, 5, 6, 7 unused
-		sector_per_track:       .word   0x24
-#		total_logsec:           .word   0x1680
-#		bigsec_num:             .long   0x0
-                head_num:               .word   0x2				
-		logsec_per_cluster:     .byte   0x1
+	bytes_per_logsec:       .word   0x200   # Sector size (in bytes)
+	reserved_logsec:        .word   0x1     # 0 - boot sector, need more info. temp 3
+	fat_cnt:                .byte   0x2     # Number of allocation tables - FAT12 Always have 2
+	root_dir_num:           .word   0xe0    # Maximum number of dirs. in root dir.
+	logsec_per_fat:         .word   0x9     # bit 0 - 0 single sided, 1 double sided
+											# bit 1 (size) - 0 if 9 sectors per FAT, 1 if 8
+											# bit 3 (removable status) - 0 fixed, 1 removable
+											# bit 4, 5, 6, 7 unused
+	sector_per_track:       .word   0x24
+#	total_logsec:           .word   0x1680
+#	bigsec_num:             .long   0x0
+	head_num:               .word   0x2				
+	logsec_per_cluster:     .byte   0x1
 global_fat_values:
-		root_size:	.word	0x0	# Size of root dir
-		root_start_mem:	.word	0x0	# Start of root dir in memory
-		root_end_mem:	.word	0x0	# End of root dir in memory
-		fat_size:	.word	0x0	# Size of fat (total, fat*2)
-		data_start:	.word	0x0	# Start address of data region on disk
+		root_size:		.word	0x0		# Size of root dir
+		root_start_mem:	.word	0x0		# Start of root dir in memory
+		root_end_mem:	.word	0x0		# End of root dir in memory
+		fat_size:		.word	0x0		# Size of fat (total, fat*2)
+		data_start:		.word	0x0		# Start address of data region on disk
 .globl	load_fat
 # ABOUT:
 #	Loads FAT table of drive specified in passed parameter.
@@ -184,18 +184,18 @@ calculate_lba:
 		movw	4(%bp), %ax
 		divw	%cx		# (lba % (sector_per_track * 2))
 		movw	%dx, %ax
-		xor	%dx, %dx	# Clear reminder
+		xor		%dx, %dx	# Clear reminder
 		movw	sector_per_track, %cx
 		divw	%cx		# (...) / sector_per_track
 		pushw	%ax		# Save value
 	track:
-		xor	%dx, %dx
+		xor		%dx, %dx
 		movw	-2(%bp), %cx
 		movw	4(%bp), %ax
 		divw	%cx
 		pushw	%ax
 	sector:
-		xor	%dx, %dx
+		xor		%dx, %dx
 		movw	4(%bp), %ax
 		movw	sector_per_track, %cx
 		divw	%cx
@@ -235,7 +235,7 @@ read_sectors:
 	xorw	%bx, %bx
 	read:
 		cmpw	$0, 6(%bp)
-		je	end_read
+		je		end_read
 
 		pushw	4(%bp)
 		call	calculate_lba
@@ -243,14 +243,14 @@ read_sectors:
 		movb	$2, %ah
 		movb	$1, %al
 		movb	$0, %dl
-		int	$0x13
+		int		$0x13
 
 		decw	6(%bp)
 		incw	4(%bp)
 		addw	$0x200, %bx	# Bug:	We are limited to 63kb read, as bx will overflow.
 					#	Add check to move segment and reset bx to mitigate
 					#	this problem
-		jmp	read
+		jmp		read
 		end_read:
 			movw	%bp, %sp
 			popw	%bp
@@ -294,14 +294,14 @@ find_file:
 		movw	$11, %cx
 	 	loop_chars:
 			test	%cx, %cx
-			jz	done
+			jz		done
 			movb	(%di), %al
 			cmpb	%al, (%bx)
-			jne	find
+			jne		find
 			incw	%di
 			incw	%bx
 			decw	%cx
-			jmp	loop_chars
+			jmp		loop_chars
 	done:
 		movw	15(%bx), %ax
 		movw	17(%bx), %cx
@@ -397,12 +397,12 @@ read_file_linear:
 #		call	read_sectors
 
 #		cmpw	$0, -2(%bp)
-#		jmp	end_read_calculate
+#		jmp		end_read_calculate
 #		decw	-2(%bp)
 #		incw	-4(%bp)
 #		addw	$0x200, 8(%bp)
-#		jmp	loop		
-#		jmp	read_calculate
+#		jmp		loop		
+#		jmp		read_calculate
 		
 #		even:
 #		odd: 

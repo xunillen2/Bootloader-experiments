@@ -1,0 +1,11 @@
+#!/bin/sh
+
+rm boot_fin.img
+dd if=/dev/zero of=boot_fin.img bs=512 count=5760
+dd if=boot_firststage.img of=boot_fin.img bs=512 count=1 conv=notrunc
+vnconfig -u vnd0
+vnconfig vnd0 boot_fin.img
+mount /dev/vnd0i /mnt
+cp LINKSCND.BTT /mnt/
+umount /mnt/
+chown xuni:xuni boot_fin.img
